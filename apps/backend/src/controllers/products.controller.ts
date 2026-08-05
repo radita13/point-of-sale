@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../db.js';
 import { toPrismaError } from '../lib/errors.js';
 import { requireStoreAccess } from '../middleware/store-access.js';
-import { productSyncPayloadSchema } from '../shared.js';
+import { productSyncPayloadSchema } from '@point-of-sale/shared';
 import { uploadProductImage } from '../lib/storage.js';
 
 export async function getProducts(req: Request, res: Response): Promise<void> {

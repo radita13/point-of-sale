@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { toPrismaError } from '../lib/errors.js';
 import { requireStoreAccess } from '../middleware/store-access.js';
-import { inventoryAdjustmentSchema } from '../shared.js';
+import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
 
 const adjustmentsPayloadSchema = z.object({
   storeId: z.string().min(1),
