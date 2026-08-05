@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { prisma } from '../db.js';
 import { toPrismaError } from '../lib/errors.js';
 import { requireStoreAccess } from '../middleware/store-access.js';
@@ -7,7 +7,7 @@ import { syncPayloadSchema } from '@point-of-sale/shared';
 import type { PaymentMethod, Unit } from '@point-of-sale/shared';
 
 async function nextInvoiceNoForStore(
-  tx: typeof prisma,
+  tx: any,
   storeId: string,
   invoiceNo: string,
 ): Promise<string> {
@@ -40,7 +40,7 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
 
   try {
     const feProductIds = Array.from(
-      new Set(parsed.data.transactions.flatMap((t) => t.items.map((it) => it.productId))),
+      new Set(parsed.data.transactions.flatMap((t: any) => t.items.map((it: any) => it.productId))),
     );
 
     const foundProducts = await prisma.product.findMany({
@@ -105,8 +105,8 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
             },
           });
           created = true;
-        } catch (err) {
-          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          } catch (err: any) {
+            if (err?.code === 'P2002') {
             invoiceNo = await nextInvoiceNoForStore(prisma, parsed.data.storeId, invoiceNo);
             if (invoiceNo !== t.invoiceNo) invoiceNoMap[t.id] = invoiceNo;
             continue;
@@ -141,7 +141,7 @@ export async function getSyncStatus(req: any, res: any): Promise<void> {
       ? { id: { in: ids }, storeId }
       : { id: { in: ids } };
     const found = await prisma.transaction.findMany({ where });
-    const byId = new Map(found.map((tx) => [tx.id, tx.timestamp.getTime()]));
+    const byId = new Map(found.map((tx: any) => [tx.id, tx.timestamp.getTime()]));
     const result = ids.map((id) => ({
       id,
       isSynced: byId.has(id),
@@ -177,12 +177,12 @@ export async function getTransactions(req: any, res: any): Promise<void> {
       prisma.transaction.count({ where: { storeId } }),
     ]);
 
-    res.json({
-      data: rows.map((t) => ({
-        id: t.id,
-        invoiceNo: t.invoiceNo,
-        timestamp: t.timestamp.getTime(),
-        items: t.items.map((it) => ({
+      res.json({
+        data: rows.map((t: any) => ({
+          id: t.id,
+          invoiceNo: t.invoiceNo,
+          timestamp: t.timestamp.getTime(),
+          items: t.items.map((it: any) => ({
           productId: it.productId,
           productName: it.productName,
           sku: it.sku ?? undefined,

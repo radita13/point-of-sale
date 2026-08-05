@@ -24,9 +24,9 @@ export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' 
 
 /** Wrap async handler agar error diteruskan ke error middleware. */
 export function asyncHandler(
-  fn: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => Promise<void>,
+  fn: (req: any, res: any, next: any) => Promise<void>,
 ): RequestHandler {
-  return (req, res, next) => {
+  return (req: any, res: any, next: any) => {
     fn(req, res, next).catch(next);
   };
 }

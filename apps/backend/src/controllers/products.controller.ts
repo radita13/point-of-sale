@@ -18,7 +18,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
       orderBy: { name: 'asc' },
     });
     res.json(
-      products.map((p) => ({
+      products.map((p: any) => ({
         id: p.serverId,
         sku: p.sku,
         name: p.name,

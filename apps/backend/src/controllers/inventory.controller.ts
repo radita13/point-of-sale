@@ -36,7 +36,7 @@ export async function getLowStock(req: any, res: any): Promise<void> {
       ORDER BY "stock" ASC
     `;
     res.json(
-      low.map((p) => ({
+      low.map((p: any) => ({
         id: p.serverId,
         sku: p.sku,
         name: p.name,
@@ -59,7 +59,7 @@ export async function adjustInventory(req: any, res: any): Promise<void> {
   const { storeId, adjustments } = parsed.data;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   try {
-    const results = await prisma.$transaction(async (tx) => {
+    const results = await prisma.$transaction(async (tx: any) => {
       const rows = [];
       for (const a of adjustments) {
         const existing = await tx.inventoryAdjustment.findUnique({
