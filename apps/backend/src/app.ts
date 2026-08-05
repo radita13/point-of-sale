@@ -23,15 +23,8 @@ const allowedOrigins = (
 
 app.use(
   cors({
-    origin(origin, cb) {
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        allowedOrigins.includes("*")
-      )
-        return cb(null, true);
-      return cb(null, false);
-    },
+    origin: true,
+    credentials: true,
   }),
 );
 app.use(express.json({ limit: "20mb" }));
