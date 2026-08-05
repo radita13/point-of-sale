@@ -13,7 +13,8 @@ import transactionsRouter from "./routes/transactions.js";
 const app = express();
 
 const allowedOrigins = (
-  process.env.CORS_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173"
+  process.env.CORS_ORIGINS ??
+  "http://localhost:5173,http://127.0.0.1:5173,https://point-of-sale-fe.vercel.app/"
 )
   .split(",")
   .map((s) => s.trim())
@@ -22,7 +23,12 @@ const allowedOrigins = (
 app.use(
   cors({
     origin(origin, cb) {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes("*")
+      )
+        return cb(null, true);
       return cb(null, false);
     },
   }),
