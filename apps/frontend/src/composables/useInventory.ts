@@ -7,17 +7,10 @@ import { makeUuid, seedProductsIfEmpty } from '@/db/seed';
 import { useSyncStore } from '@/stores/sync';
 import { useForm } from '@tanstack/vue-form';
 
+const CATEGORIES = ['Beras & Minyak', 'Bumbu Dapur', 'Minuman', 'Rokok & Snack'];
+const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset'] as const;
+
 export function useInventory() {
-  const products = ref<Product[]>([]);
-  const showModal = ref(false);
-  const isEdit = ref(false);
-  const form = ref<Product>(emptyForm());
-  const deleteTarget = ref<Product | null>(null);
-  const imageSizeKb = ref(0);
-
-  const CATEGORIES = ['Beras & Minyak', 'Bumbu Dapur', 'Minuman', 'Rokok & Snack'];
-  const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset'] as const;
-
   function emptyForm(): Product {
     return {
       id: makeUuid(),
@@ -33,6 +26,13 @@ export function useInventory() {
       updatedAt: Date.now(),
     };
   }
+
+  const products = ref<Product[]>([]);
+  const showModal = ref(false);
+  const isEdit = ref(false);
+  const form = ref<Product>(emptyForm());
+  const deleteTarget = ref<Product | null>(null);
+  const imageSizeKb = ref(0);
 
   async function refresh() {
     products.value = (await db.products.toArray()).filter((p) => !p.isDeleted);
