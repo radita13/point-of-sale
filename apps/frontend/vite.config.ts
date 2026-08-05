@@ -45,6 +45,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@point-of-sale/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
     },
     // Utamakan source .ts (.mts/.ts) di atas artifact .js (lihat tsconfig noEmit)
     extensions: ['.mts', '.ts', '.mjs', '.js', '.jsx', '.tsx', '.json', '.vue'],
