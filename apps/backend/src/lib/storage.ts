@@ -23,7 +23,7 @@ function authHeaders(extra: Record<string, string> = {}): Record<string, string>
 
 /** Pastikan bucket publik ada; dibuat otomatis dengan izin public read. */
 async function ensureBucket(): Promise<void> {
-  const list = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const list: any = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     headers: authHeaders(),
   });
   if (!list.ok) {
@@ -32,7 +32,7 @@ async function ensureBucket(): Promise<void> {
   const buckets = (await list.json()) as Array<{ id: string; name: string }>;
   if (buckets.some((b) => b.id === BUCKET || b.name === BUCKET)) return;
 
-  const create = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const create: any = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
@@ -58,7 +58,7 @@ export async function uploadProductImage(dataUrl: string, productId: string): Pr
 
   await ensureBucket();
 
-  const upload = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+  const upload: any = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
     method: 'PUT',
     headers: authHeaders({ 'Content-Type': mime, 'x-upsert': 'true' }),
     body: bytes,
