@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate",
+    "vercel-build": "pnpm --filter @point-of-sale/shared build && prisma generate && tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
