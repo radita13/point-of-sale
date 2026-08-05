@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db.js';
 import { toPrismaError } from '../lib/errors.js';
 import { requireStoreAccess } from '../middleware/store-access.js';
-import { syncPayloadSchema } from '@point-of-sale/shared';
-import type { PaymentMethod, Unit } from '@point-of-sale/shared';
+import { syncPayloadSchema } from '../shared.js';
+import type { PaymentMethod, Unit } from '../shared.js';
 
 async function nextInvoiceNoForStore(
   tx: typeof prisma,
