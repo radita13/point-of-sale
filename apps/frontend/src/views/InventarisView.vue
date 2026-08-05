@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, h } from 'vue';
+import { ref, h } from 'vue';
 import { Package, Pencil, Trash2, X, RefreshCw } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import { formatPrice } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
-import Badge from '@/components/ui/Badge.vue';
 import { useInventory } from '@/composables/useInventory';
 
 import {
@@ -82,9 +81,13 @@ const columns = [
     cell: (info) => {
       const isLow = info.getValue();
       return h(
-        Badge,
-        { class: isLow ? 'bg-card-coral text-white' : 'bg-card-green text-white' },
-        () => (isLow ? 'STOK MENIPIS' : 'AMAN'),
+        'span',
+        {
+          class: `inline-block rounded-md border border-ink px-2 py-0.5 text-[10px] font-extrabold ${
+            isLow ? 'bg-card-coral text-white' : 'bg-card-green text-white'
+          }`,
+        },
+        isLow ? 'STOK MENIPIS' : 'AMAN',
       );
     },
   }),
@@ -113,12 +116,8 @@ const columns = [
   }),
 ];
 
-const tableData = computed(() => products.value ?? []);
-
 const table = useVueTable({
-  get data() {
-    return tableData.value;
-  },
+  data: products,
   columns,
   state: {
     get sorting() {
