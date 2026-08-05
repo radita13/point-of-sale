@@ -5,7 +5,8 @@ import express, {
   type Response,
 } from "express";
 import cors from "cors";
-import rateLimit from "express-rate-limit";
+import rateLimitModule from "express-rate-limit";
+const rateLimit = (typeof rateLimitModule === "function" ? rateLimitModule : (rateLimitModule as any).default || rateLimitModule) as typeof rateLimitModule;
 import productsRouter from "./routes/products.js";
 import inventoryRouter from "./routes/inventory.js";
 import transactionsRouter from "./routes/transactions.js";
