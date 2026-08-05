@@ -1,0 +1,496 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue';
+import { toast } from 'vue-sonner';
+import { Search, ShoppingCart, Printer, Trash2, Minus, Plus, ReceiptText, X, PackageOpen, Bluetooth } from 'lucide-vue-next';
+import type { Product, TransactionItem } from '@point-of-sale/shared';
+import { db } from '@/db/database';
+import { formatPrice } from '@/lib/utils';
+import { useCartStore } from '@/stores/cart';
+import { commitTransaction } from '@/services/transactions';
+import { useBluetoothPrinter } from '@/composables/useBluetoothPrinter';
+import { useSyncStore } from '@/stores/sync';
+import { useStoreSettingsStore } from '@/stores/storeSettings';
+import Badge from '@/components/ui/Badge.vue';
+
+const cart = useCartStore();
+const printer = useBluetoothPrinter();
+const sync = useSyncStore();
+const storeSettings = useStoreSettingsStore();
+
+const products = ref<Product[]>([]);
+const searchQuery = ref('');
+const selectedCategory = ref('Semua');
+const showMobileCart = ref(false);
+
+const categories = ['Semua', 'Beras & Minyak', 'Bumbu Dapur', 'Minuman', 'Rokok & Snack'];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Beras & Minyak': 'bg-card-yellow',
+  'Bumbu Dapur': 'bg-card-green',
+  Minuman: 'bg-card-coral',
+  'Rokok & Snack': 'bg-card-blue',
+};
+
+function cardColor(p: Product): string {
+  return CATEGORY_COLORS[p.category] ?? 'bg-card-purple';
+}
+
+async function loadProducts() {
+  products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
+}
+
+onMounted(async () => {
+  if (navigator.onLine && (await db.products.count()) === 0) {
+    const restored = await sync.restoreProductsFromServer();
+    if (restored > 0) {
+      await loadProducts();
+      return;
+    }
+  }
+  await loadProducts();
+});
+
+const filteredProducts = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  return products.value.filter((p) => {
+    const matchCat = selectedCategory.value === 'Semua' || p.category === selectedCategory.value;
+    const matchSearch =
+      !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
+});
+
+function quickStep(unit: string): number {
+  return unit === 'kg' ? 0.5 : 1;
+}
+
+function addToCart(p: Product, qty: number) {
+  if (p.stock <= 0) return;
+  cart.addToCart(p, qty);
+  toast.success(`${p.name} (+${qty} ${p.unit}) dimasukkan!`);
+}
+
+const payAmount = ref(0);
+const finalAmount = computed(() => cart.subtotal);
+const changeAmount = computed(() => payAmount.value - finalAmount.value);
+const quickPresets = [10000, 20000, 50000, 100000];
+
+function applyPreset(v: number) {
+  payAmount.value = v;
+}
+
+const presetsWithPas = computed(() => [{ label: 'Uang Pas', value: finalAmount.value }, ...quickPresets.map((v) => ({ label: `${(v / 1000).toLocaleString('id-ID')} Ribu`, value: v }))]);
+
+// Receipt modal
+interface Receipt {
+  invoiceNo: string;
+  date: string;
+  items: TransactionItem[];
+  total: number;
+  pay: number;
+  change: number;
+}
+const showReceipt = ref(false);
+const lastReceipt = ref<Receipt | null>(null);
+
+async function processPayment() {
+  if (cart.items.length === 0) return;
+  if (payAmount.value < finalAmount.value) return;
+
+  const items: TransactionItem[] = cart.items.map((it) => ({
+    productId: it.product.id,
+    productName: it.product.name,
+    sku: it.product.sku,
+    qty: it.qty,
+    unit: it.product.unit,
+    price: it.product.sellingPrice,
+    costPrice: it.product.costPrice,
+    subtotal: it.product.sellingPrice * it.qty,
+  }));
+
+  try {
+    const { transaction } = await commitTransaction(items, {
+      paymentMethod: 'CASH',
+      payAmount: payAmount.value,
+      changeAmount: changeAmount.value,
+    });
+
+    lastReceipt.value = {
+      invoiceNo: transaction.invoiceNo,
+      date: new Date(transaction.timestamp).toLocaleString('id-ID'),
+      items: transaction.items,
+      total: transaction.finalAmount,
+      pay: transaction.payAmount,
+      change: transaction.changeAmount,
+    };
+
+    cart.clearCart();
+    payAmount.value = 0;
+    showMobileCart.value = false;
+    showReceipt.value = true;
+    await loadProducts();
+    sync.refreshCount();
+    if (navigator.onLine) sync.runSync();
+    toast.success('Transaksi Berhasil Dicatat!');
+  } catch (err) {
+    console.error(err);
+    toast.error('Gagal menyimpan transaksi.');
+  }
+}
+
+function printNow() {
+  if (!lastReceipt.value) return;
+  if (!printer.isConnected.value) {
+    toast.info('Hubungkan printer Bluetooth dulu, atau tutup preview struk.');
+    return;
+  }
+  printer
+    .printReceipt({
+      storeName: storeSettings.settings.storeName,
+      address: storeSettings.settings.address,
+      phone: storeSettings.settings.phone,
+      invoiceNo: lastReceipt.value.invoiceNo,
+      date: lastReceipt.value.date,
+      cashier: 'Kasir',
+      items: lastReceipt.value.items.map((i) => ({
+        name: i.productName,
+        qty: i.qty,
+        unit: i.unit,
+        price: i.price,
+        subtotal: i.subtotal,
+      })),
+      total: lastReceipt.value.total,
+      pay: lastReceipt.value.pay,
+      change: lastReceipt.value.change,
+      paymentMethod: 'CASH',
+    })
+    .then(() => toast.success('Struk dikirim ke printer Bluetooth.'))
+    .catch((err) => toast.error(err instanceof Error ? err.message : 'Gagal cetak.'));
+}
+
+async function connectPrinter() {
+  try {
+    await printer.connect();
+    toast.success(`Printer terhubung: ${printer.deviceName.value}`);
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Gagal menghubungkan printer.');
+  }
+}
+</script>
+
+<template>
+  <div class="grid grid-cols-1 gap-5 lg:grid-cols-12">
+    <!-- Left: catalog -->
+    <section class="space-y-4 lg:col-span-7">
+      <div class="space-y-3 rounded-2xl border-2 border-ink bg-surface p-3.5 shadow-hard-md">
+        <div class="relative flex items-center gap-2">
+          <Search class="absolute left-3 h-5 w-5 text-ink/40" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari nama barang atau SKU..."
+            class="h-11 w-full rounded-xl border-2 border-ink bg-canvas pl-9 pr-10 text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+          />
+        </div>
+
+        <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
+          <button
+            v-for="cat in categories"
+            :key="cat"
+            @click="selectedCategory = cat"
+            :class="selectedCategory === cat ? 'bg-ink text-white' : 'bg-canvas text-ink'"
+            class="neo-press whitespace-nowrap rounded-xl border border-ink px-3 py-1 text-[11px] font-extrabold"
+          >
+            {{ cat }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="filteredProducts.length === 0" class="rounded-2xl border-2 border-ink bg-surface p-10 text-center">
+        <PackageOpen class="mx-auto mb-2 h-10 w-10 text-ink/30" />
+        <p class="text-sm font-bold">Tidak ada produk ditemukan.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+        <div
+          v-for="p in filteredProducts"
+          :key="p.id"
+          :class="cardColor(p)"
+          class="relative flex flex-col justify-between rounded-2xl border-2 border-ink p-3 text-white shadow-hard-md transition-transform hover:-translate-y-0.5"
+        >
+          <Badge
+            v-if="p.stock <= p.minStock"
+            class="absolute -right-2 -top-2 z-10 bg-card-coral text-white shadow-hard-sm"
+          >
+            Stok {{ p.stock <= 0 ? 'HABIS' : 'Menipis' }}
+          </Badge>
+
+          <div>
+            <div class="mb-2 flex h-24 w-full items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-white sm:h-28">
+              <img v-if="p.image" :src="p.image" :alt="p.name" class="h-full w-full object-cover" />
+              <PackageOpen v-else class="h-8 w-8 text-ink/30" />
+            </div>
+            <span class="text-[10px] font-bold uppercase tracking-wider opacity-80">{{ p.category }}</span>
+            <h3 class="mt-0.5 truncate text-sm font-extrabold leading-tight sm:text-base">{{ p.name }}</h3>
+            <p class="mt-0.5 text-xs font-bold text-white/90">
+              Rp {{ formatPrice(p.sellingPrice) }} / <span class="underline underline-offset-2">{{ p.unit }}</span>
+            </p>
+          </div>
+
+          <div class="mt-3 flex flex-col gap-1.5 border-t border-white/20 pt-2">
+            <div class="flex items-center justify-between text-[11px] font-semibold text-white/90">
+              <span>Stok: {{ p.stock }} {{ p.unit }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button
+                @click="addToCart(p, quickStep(p.unit))"
+                :disabled="p.stock <= 0"
+                class="neo-press rounded-xl border border-black bg-ink py-1.5 text-[11px] font-extrabold text-white hover:bg-brand disabled:opacity-50"
+              >
+                +{{ quickStep(p.unit) }} {{ p.unit }}
+              </button>
+              <button
+                @click="addToCart(p, 1)"
+                :disabled="p.stock <= 0"
+                class="neo-press rounded-xl border border-black bg-white py-1.5 text-[11px] font-extrabold text-ink hover:bg-canvas disabled:opacity-50"
+              >
+                +1 {{ p.unit }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right: cart sidebar (desktop) -->
+    <aside class="sticky top-24 hidden h-[calc(100vh-150px)] flex-col justify-between rounded-2xl border-2 border-ink bg-surface p-4 shadow-hard-lg lg:col-span-5 lg:flex">
+      <div>
+        <div class="mb-3 flex items-center justify-between border-b-2 border-ink pb-3">
+          <h2 class="flex items-center gap-2 text-base font-extrabold">
+            <ShoppingCart class="h-5 w-5 text-brand" /> Keranjang Belanja
+          </h2>
+          <button v-if="cart.items.length" @click="cart.clearCart(); payAmount = 0" class="text-xs font-bold text-card-coral hover:underline">
+            Reset
+          </button>
+        </div>
+
+        <div v-if="cart.items.length === 0" class="py-16 text-center text-gray-500">
+          <ShoppingCart class="mx-auto mb-2 h-10 w-10 text-ink/20" />
+          <p class="text-sm font-bold text-ink">Keranjang masih kosong</p>
+          <p class="mt-0.5 text-xs text-ink/50">Pilih produk sembako dari katalog di sebelah kiri.</p>
+        </div>
+
+        <div v-else class="neo-scroll max-h-[300px] space-y-2.5 overflow-y-auto pr-1">
+          <div v-for="it in cart.items" :key="it.product.id" class="flex flex-col gap-2 rounded-xl border-2 border-ink bg-canvas p-2.5 shadow-hard-sm">
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <h4 class="truncate text-sm font-extrabold">{{ it.product.name }}</h4>
+                <p class="mt-0.5 text-[11px] font-bold text-gray-600">
+                  Rp {{ formatPrice(it.product.sellingPrice) }} / {{ it.product.unit }}
+                </p>
+              </div>
+              <button @click="cart.removeFromCart(it.product.id)" class="shrink-0 p-1 text-gray-400 hover:text-card-coral">
+                <Trash2 class="h-4 w-4" />
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-gray-300 pt-2">
+              <div class="flex items-center gap-1">
+                <button @click="cart.decreaseQty(it.product.id, quickStep(it.product.unit))" class="flex h-7 w-7 items-center justify-center rounded-lg border border-ink bg-white text-xs font-black hover:bg-canvas">
+                  <Minus class="h-3.5 w-3.5" />
+                </button>
+                <input
+                  type="number"
+                  step="0.01"
+                  :value="it.qty"
+                  @change="(e: Event) => cart.setQty(it.product.id, Number((e.target as HTMLInputElement).value))"
+                  class="w-16 rounded-lg border border-ink bg-white py-1 text-center text-xs font-bold focus:outline-none"
+                />
+                <button @click="cart.increaseQty(it.product.id, quickStep(it.product.unit))" class="flex h-7 w-7 items-center justify-center rounded-lg border border-ink bg-white text-xs font-black hover:bg-canvas">
+                  <Plus class="h-3.5 w-3.5" />
+                </button>
+                <span class="ml-1 text-[11px] font-bold text-gray-600">{{ it.product.unit }}</span>
+              </div>
+              <span class="text-sm font-extrabold">Rp {{ formatPrice(it.product.sellingPrice * it.qty) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary + checkout -->
+      <div class="mt-3 space-y-2.5 border-t-2 border-ink pt-3">
+        <div class="space-y-1 text-xs font-bold">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal Barang:</span>
+            <span>Rp {{ formatPrice(cart.subtotal) }}</span>
+          </div>
+          <div class="flex justify-between items-center text-sm font-extrabold text-ink">
+            <span>Total Tagihan:</span>
+            <span class="text-lg text-brand">Rp {{ formatPrice(finalAmount) }}</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-4 gap-1.5">
+          <button
+            v-for="preset in presetsWithPas"
+            :key="preset.label"
+            @click="applyPreset(preset.value)"
+            class="neo-press rounded-lg border border-ink bg-canvas py-1.5 text-[10px] font-extrabold"
+          >
+            {{ preset.label }}
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <span class="w-20 text-xs font-extrabold">Uang Cash:</span>
+          <input
+            type="number"
+            v-model.number="payAmount"
+            placeholder="0"
+            class="w-full rounded-xl border-2 border-ink bg-white px-3 py-1.5 text-sm font-extrabold focus:outline-none"
+          />
+        </div>
+
+        <div class="flex justify-between px-1 text-xs font-bold">
+          <span>Kembalian:</span>
+          <span :class="changeAmount < 0 ? 'text-card-coral' : 'text-card-green'" class="font-extrabold">
+            Rp {{ formatPrice(changeAmount < 0 ? 0 : changeAmount) }}
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            @click="connectPrinter"
+            :disabled="!printer.isSupported.value"
+            :class="printer.isConnected.value ? 'bg-card-green text-white border-ink' : 'bg-surface text-ink border-ink'"
+            class="neo-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border-2 text-[11px] font-extrabold disabled:opacity-40"
+            :title="printer.isConnected.value ? printer.deviceName.value ?? 'Printer BT' : 'Hubungkan printer Bluetooth'"
+          >
+            <Bluetooth class="h-4 w-4" />
+            {{ printer.isConnected.value ? printer.deviceName.value : 'Printer BT' }}
+          </button>
+          <button
+            @click="processPayment"
+            :disabled="cart.items.length === 0 || payAmount < finalAmount"
+            class="neo-press flex h-10 flex-[2] items-center justify-center gap-2 rounded-xl border-2 border-ink bg-brand py-3 text-xs font-extrabold uppercase tracking-wider text-white shadow-hard-md hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Printer class="h-4 w-4" />
+            Bayar & Cetak Struk
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mobile floating cart bar -->
+    <div
+      v-if="cart.items.length > 0"
+      class="fixed inset-x-3 bottom-[72px] z-40 flex items-center justify-between rounded-2xl border-2 border-white bg-ink p-3 text-white shadow-hard-lg lg:hidden"
+    >
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-300">{{ cart.totalItems }} Item dalam Keranjang</p>
+        <p class="text-base font-black text-offline">Rp {{ formatPrice(finalAmount) }}</p>
+      </div>
+      <button @click="showMobileCart = true" class="neo-press flex items-center gap-1.5 rounded-xl border border-white bg-brand px-4 py-2.5 text-xs font-extrabold uppercase hover:bg-brand-hover">
+        <ShoppingCart class="h-4 w-4" /> Lihat
+      </button>
+    </div>
+
+    <!-- Mobile bottom sheet -->
+    <div v-if="showMobileCart" class="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm lg:hidden">
+      <div class="flex max-h-[85vh] flex-col justify-between rounded-t-3xl border-x-2 border-t-2 border-ink bg-surface p-4 shadow-hard-xl">
+        <div>
+          <div class="mb-3 flex items-center justify-between border-b-2 border-ink pb-3">
+            <h2 class="flex items-center gap-2 text-base font-extrabold">
+              <ShoppingCart class="h-5 w-5 text-brand" /> Keranjang Belanja
+            </h2>
+            <button @click="showMobileCart = false" class="p-1 text-gray-600"><X class="h-5 w-5" /></button>
+          </div>
+          <div class="neo-scroll max-h-[220px] space-y-2 overflow-y-auto pr-1">
+            <div v-for="it in cart.items" :key="it.product.id" class="flex flex-col gap-2 rounded-xl border-2 border-ink bg-canvas p-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <h4 class="truncate text-xs font-extrabold">{{ it.product.name }}</h4>
+                <button @click="cart.removeFromCart(it.product.id)" class="text-gray-400 hover:text-card-coral">
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </div>
+              <div class="flex items-center justify-between border-t border-gray-300 pt-1.5">
+                <div class="flex items-center gap-1">
+                  <button @click="cart.decreaseQty(it.product.id, quickStep(it.product.unit))" class="flex h-6 w-6 items-center justify-center rounded border border-ink bg-white text-xs font-black">
+                    <Minus class="h-3 w-3" />
+                  </button>
+                  <input type="number" step="0.01" :value="it.qty" @change="(e: Event) => cart.setQty(it.product.id, Number((e.target as HTMLInputElement).value))" class="w-14 rounded border border-ink bg-white py-0.5 text-center text-xs font-bold" />
+                  <button @click="cart.increaseQty(it.product.id, quickStep(it.product.unit))" class="flex h-6 w-6 items-center justify-center rounded border border-ink bg-white text-xs font-black">
+                    <Plus class="h-3 w-3" />
+                  </button>
+                  <span class="ml-1 text-[10px] font-bold text-gray-600">{{ it.product.unit }}</span>
+                </div>
+                <span class="text-xs font-extrabold">Rp {{ formatPrice(it.product.sellingPrice * it.qty) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 space-y-2 border-t-2 border-ink pt-3">
+          <div class="flex items-center justify-between text-sm font-extrabold">
+            <span>Total Tagihan:</span>
+            <span class="text-base text-brand">Rp {{ formatPrice(finalAmount) }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-14 text-xs font-extrabold">Cash:</span>
+            <input type="number" v-model.number="payAmount" placeholder="0" class="w-full rounded-xl border-2 border-ink bg-white px-3 py-1 text-xs font-extrabold" />
+          </div>
+          <button
+            @click="processPayment"
+            :disabled="cart.items.length === 0 || payAmount < finalAmount"
+            class="neo-press flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-brand py-2.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-hard-md disabled:opacity-50"
+          >
+            <Printer class="h-4 w-4" /> Bayar & Cetak Struk
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receipt modal -->
+    <div v-if="showReceipt && lastReceipt" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-sm rounded-2xl border-2 border-ink bg-white p-6 font-mono text-xs shadow-hard-xl">
+        <div class="mb-3 border-b-2 border-dashed border-ink pb-3 text-center">
+          <h3 class="text-sm font-extrabold text-ink uppercase">{{ storeSettings.settings.storeName }}</h3>
+          <p class="text-[10px] text-gray-600">{{ storeSettings.settings.address }}</p>
+          <p class="text-[10px] text-gray-600">{{ storeSettings.settings.phone }}</p>
+        </div>
+
+        <div class="mb-3 space-y-1 text-[11px]">
+          <div class="flex justify-between"><span>No. Nota:</span><span class="font-bold">{{ lastReceipt.invoiceNo }}</span></div>
+          <div class="flex justify-between"><span>Tanggal:</span><span>{{ lastReceipt.date }}</span></div>
+        </div>
+
+        <div class="mb-3 space-y-1.5 border-y border-dashed border-ink py-2">
+          <div v-for="item in lastReceipt.items" :key="item.productId" class="flex justify-between">
+            <div>
+              <div class="font-bold">{{ item.productName }}</div>
+              <div class="text-[10px] text-gray-600">{{ item.qty }} {{ item.unit }} x Rp {{ formatPrice(item.price) }}</div>
+            </div>
+            <div class="font-bold">Rp {{ formatPrice(item.subtotal) }}</div>
+          </div>
+        </div>
+
+        <div class="mb-4 space-y-1 font-bold text-[11px]">
+          <div class="flex justify-between"><span>TOTAL:</span><span class="text-sm">Rp {{ formatPrice(lastReceipt.total) }}</span></div>
+          <div class="flex justify-between"><span>BAYAR (CASH):</span><span>Rp {{ formatPrice(lastReceipt.pay) }}</span></div>
+          <div class="flex justify-between"><span>KEMBALI:</span><span>Rp {{ formatPrice(lastReceipt.change) }}</span></div>
+        </div>
+
+        <div class="mb-4 border-t border-dashed border-ink pt-2 text-center text-[10px] text-gray-600 whitespace-pre-line">
+          {{ storeSettings.settings.receiptFooter }}
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 font-sans">
+          <button @click="showReceipt = false" class="neo-press rounded-xl border-2 border-ink bg-canvas py-2 text-xs font-extrabold">Tutup</button>
+          <button @click="printNow" class="neo-press flex items-center justify-center gap-1 rounded-xl border-2 border-ink bg-brand py-2 text-xs font-extrabold text-white shadow-hard-sm">
+            <ReceiptText class="h-3.5 w-3.5" /> Cetak Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

@@ -1,0 +1,18 @@
+# Frontend specific .gitignore
+
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Secrets & Config
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Supabase generated types
+src/lib/supabase.types.ts
+
+# Logs
+*.log

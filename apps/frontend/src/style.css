@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Neo-Brutalism palette (DESIGN.md) */
+  --color-canvas: #eee8db;
+  --color-surface: #f4f0e6;
+  --color-ink: #121212;
+  --color-brand: #1d72f2;
+  --color-brand-hover: #1557ba;
+  --color-offline: #e1a832;
+  --color-card-yellow: #e1a832;
+  --color-card-green: #0f885d;
+  --color-card-coral: #e75f51;
+  --color-card-blue: #2b6b94;
+  --color-card-purple: #8a52c0;
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --shadow-hard-sm: 2px 2px 0px 0px var(--color-ink);
+  --shadow-hard-md: 4px 4px 0px 0px var(--color-ink);
+  --shadow-hard-lg: 6px 6px 0px 0px var(--color-ink);
+  --shadow-hard-xl: 8px 8px 0px 0px var(--color-ink);
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+  ::selection {
+    @apply bg-brand text-white;
+  }
+}
+
+@layer utilities {
+  /* Neo-brutalist press state */
+  .neo-press {
+    @apply transition-transform duration-[50ms] ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+  }
+  /* Scrollbar neo */
+  .neo-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .neo-scroll::-webkit-scrollbar-track {
+    background: var(--color-canvas);
+    border-left: 2px solid var(--color-ink);
+  }
+  .neo-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-ink);
+    border-radius: 4px;
+  }
+}
+
+/* Bottom sheet slide-up animation (Code_Design.md) */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.22s ease-out;
+}
+
+/* Custom Vue-Sonner Toast Neo-Brutalism Style (Code_Design.md) */
+[data-sonner-toast] {
+  background-color: #121212 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 0.75rem !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 6px 6px 0px #121212 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}
+
+[data-sonner-toast] [data-content] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 0.25rem !important;
+}
+
+[data-sonner-toast] [data-title],
+[data-sonner-toast] [data-description] {
+  color: #ffffff !important;
+}
+
+/* Toast Message Status Indicator Badge (Di Atas Pesan) */
+[data-sonner-toast] [data-title]::before {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: fit-content;
+}
+
+[data-sonner-toast] [data-title] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+}
+
+[data-sonner-toast][data-type="success"] [data-title]::before {
+  content: 'SUCCESS';
+  background-color: #0f885d;
+  color: #ffffff;
+  border: 1px solid #34d399;
+}
+
+[data-sonner-toast][data-type="error"] [data-title]::before {
+  content: 'ERROR';
+  background-color: #e75f51;
+  color: #ffffff;
+  border: 1px solid #f87171;
+}
+
+[data-sonner-toast][data-type="warning"] [data-title]::before {
+  content: 'WARNING';
+  background-color: #e1a832;
+  color: #121212;
+  border: 1px solid #121212;
+}
+
+[data-sonner-toast][data-type="info"] [data-title]::before {
+  content: 'INFO';
+  background-color: #1d72f2;
+  color: #ffffff;
+  border: 1px solid #60a5fa;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] {
+  color: #34d399 !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon] {
+  color: #e75f51 !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-icon] {
+  color: #e1a832 !important;
+}
+
+[data-sonner-toast][data-type="info"] [data-icon] {
+  color: #1d72f2 !important;
+}

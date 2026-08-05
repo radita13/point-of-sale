@@ -1,0 +1,19 @@
+# Backend specific .gitignore
+
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets & Config
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Prisma Local / Dev DBs
+prisma/migrations/dev.db*
+*.db
+*.sqlite
+
+# Logs
+*.log
