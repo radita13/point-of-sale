@@ -50,7 +50,7 @@ const syncLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.get("/health", (_req, res) => {
+app.get("/health", (_req: any, res: any) => {
   res.json({
     status: "ok",
     service: "point-of-sale-backend",
@@ -66,10 +66,10 @@ app.use("/api/v1/products", apiLimiter, productsRouter);
 app.use("/api/v1/inventory", apiLimiter, inventoryRouter);
 app.use("/api/v1/transactions", apiLimiter, transactionsRouter);
 
-app.use((_req, res) => {
+app.use((_req: any, res: any) => {
   res.status(404).json({ error: "Route tidak ditemukan" });
 });
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, _req: any, res: any, _next: any) => {
   console.error(err);
   res.status(500).json({ error: err.message || "Internal server error" });
 });

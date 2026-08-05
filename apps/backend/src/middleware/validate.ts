@@ -6,7 +6,7 @@ import { ZodSchema } from 'zod';
  * Wajib untuk membatasi request dari FE (sesuai shared schemas).
  */
 export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' = 'body'): RequestHandler {
-  return (req, res, next) => {
+  return (req: any, res: any, next: any) => {
     const result = schema.safeParse(req[source]);
     if (!result.success) {
       return res.status(400).json({

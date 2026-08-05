@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { prisma } from '../db.js';
 import { toPrismaError } from '../lib/errors.js';
 import { requireStoreAccess } from '../middleware/store-access.js';
