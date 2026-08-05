@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h } from 'vue';
+import { ref, computed, h } from 'vue';
 import { Package, Pencil, Trash2, X, RefreshCw } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import { formatPrice } from '@/lib/utils';
@@ -113,9 +113,11 @@ const columns = [
   }),
 ];
 
+const tableData = computed(() => products.value ?? []);
+
 const table = useVueTable({
   get data() {
-    return products.value;
+    return tableData.value;
   },
   columns,
   state: {
