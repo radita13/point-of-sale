@@ -36,7 +36,7 @@ function cardColor(p: Product): string {
 }
 
 async function loadProducts() {
-  products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
+  products.value = (await db.products.toArray()).filter((p) => !p.isDeleted);
 }
 
 onMounted(async () => {

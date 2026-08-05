@@ -35,7 +35,7 @@ export function useInventory() {
   }
 
   async function refresh() {
-    products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
+    products.value = (await db.products.toArray()).filter((p) => !p.isDeleted);
   }
 
   async function refreshWithRestore() {
