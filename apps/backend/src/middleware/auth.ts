@@ -15,12 +15,6 @@ declare global {
   }
 }
 
-/**
- * Verifikasi token JWT dari Supabase Auth.
- * Best Practice:
- * 1. Jika token menggunakan HS256 (misal token dev lokal dari _mint.mjs), verifikasi secara lokal dengan SUPABASE_JWT_SECRET.
- * 2. Jika token menggunakan ES256 / RS256 (token resmi pengguna dari Supabase Auth Cloud), verifikasi via Supabase Auth API (/auth/v1/user).
- */
 export async function authGuard(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
@@ -30,11 +24,9 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
   const secret = process.env.SUPABASE_JWT_SECRET;
   const supabaseUrl = process.env.SUPABASE_URL;
 
-  // Inspect token header tanpa verifikasi signature untuk melihat algoritma ('alg')
   const decodedHeader = jwt.decode(token, { complete: true });
   const alg = decodedHeader?.header?.alg;
 
-  // 1. Coba verifikasi HS256 secara lokal (untuk dev/mint token)
   if (alg === "HS256" && secret) {
     try {
       const decoded = jwt.verify(token, secret, {
@@ -60,7 +52,6 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
     }
   }
 
-  // 2. Verifikasi via Supabase Auth Endpoint (Mendukung ES256, RS256, & Token Supabase Auth resmi)
   if (supabaseUrl) {
     try {
       const rawAnonKey = process.env.SUPABASE_ANON_KEY || "";
@@ -78,7 +69,7 @@ export async function authGuard(req: Request, res: Response, next: NextFunction)
         headers["apikey"] = anonKey;
       }
 
-      const response = await fetch(url.toString(), { headers });
+      const response: any = await fetch(url.toString(), { headers });
 
       if (response.ok) {
         const userData = (await response.json()) as { id: string; email?: string };
