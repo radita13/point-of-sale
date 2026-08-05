@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { prisma } from '../db.js';
+import './auth.js';
 
 /**
  * Pastikan `storeId` adalah milik user yang terautentikasi (req.auth.sub).
