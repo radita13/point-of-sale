@@ -5,7 +5,7 @@ import { requireStoreAccess } from '../middleware/store-access.js';
 import { productSyncPayloadSchema } from '@point-of-sale/shared';
 import { uploadProductImage } from '../lib/storage.js';
 
-export async function getProducts(req: Request, res: Response): Promise<void> {
+export async function getProducts(req: any, res: any): Promise<void> {
   const storeId = String(req.query.storeId ?? '');
   if (!storeId) {
     res.status(400).json({ error: 'storeId query parameter required' });
@@ -38,7 +38,7 @@ export async function getProducts(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function syncProducts(req: Request, res: Response): Promise<void> {
+export async function syncProducts(req: any, res: any): Promise<void> {
   const parsed = productSyncPayloadSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: 'Validasi gagal', issues: parsed.error.issues });

@@ -25,7 +25,7 @@ async function nextInvoiceNoForStore(
   return `${prefix}${String(maxSeq + 1).padStart(4, '0')}`;
 }
 
-export async function syncTransactions(req: Request, res: Response): Promise<void> {
+export async function syncTransactions(req: any, res: any): Promise<void> {
   const { storeId, transactions } = req.body ?? ({} as any);
   if (!storeId || !Array.isArray(transactions) || transactions.length === 0) {
     res.status(400).json({ error: 'storeId dan transactions wajib diisi' });
@@ -126,7 +126,7 @@ export async function syncTransactions(req: Request, res: Response): Promise<voi
   }
 }
 
-export async function getSyncStatus(req: Request, res: Response): Promise<void> {
+export async function getSyncStatus(req: any, res: any): Promise<void> {
   const ids = String(req.query.ids ?? '')
     .split(',')
     .map((x) => x.trim());
@@ -153,7 +153,7 @@ export async function getSyncStatus(req: Request, res: Response): Promise<void> 
   }
 }
 
-export async function getTransactions(req: Request, res: Response): Promise<void> {
+export async function getTransactions(req: any, res: any): Promise<void> {
   const storeId = String(req.query.storeId ?? '');
   if (!storeId) {
     res.status(400).json({ error: 'storeId query parameter required' });

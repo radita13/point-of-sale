@@ -15,7 +15,7 @@ declare global {
   }
 }
 
-export async function authGuard(req: Request, res: Response, next: NextFunction) {
+export async function authGuard(req: any, res: any, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Missing authorization token" });

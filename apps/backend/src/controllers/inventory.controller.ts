@@ -10,7 +10,7 @@ const adjustmentsPayloadSchema = z.object({
   adjustments: z.array(inventoryAdjustmentSchema).min(1).max(100),
 });
 
-export async function getLowStock(req: Request, res: Response): Promise<void> {
+export async function getLowStock(req: any, res: any): Promise<void> {
   const storeId = String(req.query.storeId ?? '');
   if (!storeId) {
     res.status(400).json({ error: 'storeId query parameter required' });
@@ -50,7 +50,7 @@ export async function getLowStock(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function adjustInventory(req: Request, res: Response): Promise<void> {
+export async function adjustInventory(req: any, res: any): Promise<void> {
   const parsed = adjustmentsPayloadSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: 'Validasi gagal', issues: parsed.error.issues });

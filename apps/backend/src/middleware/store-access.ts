@@ -14,8 +14,8 @@ import './auth.js';
  * Mengembalikan false (dan sudah menulis respons error) saat akses ditolak.
  */
 export async function requireStoreAccess(
-  req: Request,
-  res: Response,
+  req: any,
+  res: any,
   storeId: string,
 ): Promise<boolean> {
   const sub = req.auth?.sub;
