@@ -12,7 +12,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "useUnknownInCatchVariables": false
   },
   "include": ["src/**/*.ts", "api/**/*.ts"]
 }
