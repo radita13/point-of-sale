@@ -114,9 +114,7 @@ const columns = [
 ];
 
 const table = useVueTable({
-  get data() {
-    return products.value;
-  },
+  data: products,
   columns,
   state: {
     get sorting() {
