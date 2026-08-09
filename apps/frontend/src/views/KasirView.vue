@@ -585,67 +585,90 @@ async function connectPrinter() {
             <h2 class="flex items-center gap-2 text-base font-extrabold">
               <ShoppingCart class="text-brand h-5 w-5" /> Keranjang Belanja
             </h2>
-            <button @click="showMobileCart = false" class="p-1 text-gray-600">
-              <X class="h-5 w-5" />
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                v-if="cart.items.length"
+                @click="
+                  cart.clearCart();
+                  payAmount = 0;
+                "
+                class="text-card-coral text-xs font-bold hover:underline"
+              >
+                Reset
+              </button>
+              <button @click="showMobileCart = false" class="p-1 text-gray-600">
+                <X class="h-5 w-5" />
+              </button>
+            </div>
           </div>
           <div class="neo-scroll max-h-55 space-y-2 overflow-y-auto pr-1">
             <div
               v-for="it in cart.items"
               :key="it.product.id"
-              class="border-ink bg-canvas flex flex-col gap-2 rounded-xl border-2 p-2.5"
+              class="border-ink bg-canvas shadow-hard-sm flex flex-col gap-2 rounded-xl border-2 p-2.5"
             >
               <div class="flex items-center justify-between gap-2">
-                <h4 class="truncate text-xs font-extrabold">
-                  {{ it.product.name }}
-                </h4>
+                <div class="min-w-0">
+                  <h4 class="truncate text-sm font-extrabold">
+                    {{ it.product.name }}
+                  </h4>
+                  <p class="mt-0.5 text-[11px] font-bold text-gray-600">
+                    Rp {{ formatPrice(it.product.sellingPrice) }} /
+                    {{ it.product.unit }}
+                  </p>
+                </div>
                 <button
                   @click="cart.removeFromCart(it.product.id)"
-                  class="hover:text-card-coral text-gray-400"
+                  class="hover:text-card-coral shrink-0 p-1 text-gray-400"
                 >
                   <Trash2 class="h-4 w-4" />
                 </button>
               </div>
-              <div class="flex items-center justify-between border-t border-gray-300 pt-1.5">
-                <div class="flex items-center gap-1">
-                  <button
-                    @click="cart.decreaseQty(it.product.id, qtyStep(it))"
-                    class="border-ink flex h-6 w-6 items-center justify-center rounded border bg-white text-xs font-black"
-                  >
-                    <Minus class="h-3 w-3" />
-                  </button>
-                  <button
-                    @click="cart.increaseQty(it.product.id, qtyStep(it))"
-                    class="border-ink flex h-6 w-6 items-center justify-center rounded border bg-white text-xs font-black"
-                  >
-                    <Plus class="h-3 w-3" />
-                  </button>
+
+              <div class="flex items-center justify-between border-t border-gray-300 pt-2">
+                <div class="flex items-center gap-4">
+                  <div class="flex gap-2">
+                    <Button
+                      @click="cart.decreaseQty(it.product.id, qtyStep(it))"
+                      size="icon"
+                      class="cursor-pointer"
+                    >
+                      <Minus class="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      @click="cart.increaseQty(it.product.id, qtyStep(it))"
+                      size="icon"
+                      class="cursor-pointer"
+                    >
+                      <Plus class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                   <!-- Produk Tier Eceran: 2 input box (Pak + Batang) -->
-                  <template v-if="isPieces(it.product)">
+                  <div v-if="isPieces(it.product)" class="flex items-center gap-1">
                     <Input
                       type="number"
                       min="0"
                       step="1"
                       :value="splitPieces(it.product, it.qty).packs"
                       @change="(e: Event) => updatePackQty(it, e)"
-                      class="no-spin border-ink w-10 rounded border bg-white py-0.5 text-center text-xs font-bold"
+                      class="no-spin border-ink h-8 w-12 rounded-lg border bg-white py-1 text-center text-xs font-bold focus:outline-none"
                     />
-                    <span class="text-[10px] font-bold text-gray-600">{{ it.product.unit }}</span>
-                    <span class="text-[10px] font-bold text-gray-400">+</span>
+                    <span class="text-[11px] font-bold text-gray-600">{{ it.product.unit }}</span>
+                    <span class="text-[11px] font-bold text-gray-400">+</span>
                     <Input
                       type="number"
                       min="0"
                       step="1"
                       :value="splitPieces(it.product, it.qty).pieces"
                       @change="(e: Event) => updatePieceQty(it, e)"
-                      class="no-spin border-ink w-10 rounded border bg-white py-0.5 text-center text-xs font-bold"
+                      class="no-spin border-ink h-8 w-12 rounded-lg border bg-white py-1 text-center text-xs font-bold focus:outline-none"
                     />
-                    <span class="text-[10px] font-bold text-gray-600">{{
+                    <span class="text-[11px] font-bold text-gray-600">{{
                       it.product.smallUnit ?? 'bat'
                     }}</span>
-                  </template>
+                  </div>
                   <!-- Produk Utuh Biasa: 1 input box -->
-                  <template v-else>
+                  <div v-else class="flex items-center gap-1">
                     <Input
                       type="number"
                       min="0"
@@ -659,14 +682,12 @@ async function connectPrinter() {
                             false
                           )
                       "
-                      class="no-spin border-ink w-14 rounded border bg-white py-0.5 text-center text-xs font-bold"
+                      class="no-spin border-ink h-8 w-16 rounded-lg border bg-white py-1 text-center text-xs font-bold focus:outline-none"
                     />
-                    <span class="ml-0.5 text-[10px] font-bold text-gray-600">{{
-                      it.product.unit
-                    }}</span>
-                  </template>
+                    <span class="text-[11px] font-bold text-gray-600">{{ it.product.unit }}</span>
+                  </div>
                 </div>
-                <span class="text-xs font-extrabold"
+                <span class="text-sm font-extrabold"
                   >Rp {{ formatPrice(lineSubtotal(it.product, it.qty)) }}</span
                 >
               </div>
@@ -674,27 +695,77 @@ async function connectPrinter() {
           </div>
         </div>
 
-        <div class="border-ink mt-3 space-y-2 border-t-2 pt-3">
-          <div class="flex items-center justify-between text-sm font-extrabold">
-            <span>Total Tagihan:</span>
-            <span class="text-brand text-base">Rp {{ formatPrice(finalAmount) }}</span>
+        <div class="border-ink mt-3 space-y-2.5 border-t-2 pt-3">
+          <div class="space-y-1 text-xs font-bold">
+            <div class="flex justify-between text-gray-600">
+              <span>Subtotal Barang:</span>
+              <span>Rp {{ formatPrice(cart.subtotal) }}</span>
+            </div>
+            <div class="text-ink flex items-center justify-between text-sm font-extrabold">
+              <span>Total Tagihan:</span>
+              <span class="text-brand text-lg">Rp {{ formatPrice(finalAmount) }}</span>
+            </div>
           </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button
+              v-for="preset in presetsWithPas"
+              :key="preset.label"
+              @click="applyPreset(preset.value)"
+              class="neo-press border-ink bg-canvas cursor-pointer rounded-lg border py-1.5 text-[10px] font-extrabold"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+
           <div class="flex items-center gap-2">
-            <span class="w-14 text-xs font-extrabold">Cash:</span>
+            <span class="w-28 text-sm font-extrabold">Uang Cash:</span>
             <input
               type="number"
               v-model.number="payAmount"
               placeholder="0"
-              class="border-ink w-full rounded-xl border-2 bg-white px-3 py-1 text-xs font-extrabold"
+              class="border-ink no-spin w-full rounded-xl border-2 bg-white px-3 py-1.5 text-sm font-extrabold focus:outline-none"
             />
           </div>
-          <button
-            @click="processPayment"
-            :disabled="cart.items.length === 0 || payAmount < finalAmount"
-            class="neo-press border-ink bg-brand shadow-hard-md flex w-full items-center justify-center gap-1.5 rounded-xl border-2 py-2.5 text-xs font-extrabold tracking-wider text-white uppercase disabled:opacity-50"
-          >
-            <Printer class="h-4 w-4" /> Bayar & Cetak Struk
-          </button>
+
+          <div class="flex justify-between text-sm font-bold">
+            <span>Kembalian:</span>
+            <span
+              :class="changeAmount < 0 ? 'text-card-coral' : 'text-card-green'"
+              class="font-extrabold"
+            >
+              Rp {{ formatPrice(changeAmount < 0 ? 0 : changeAmount) }}
+            </span>
+          </div>
+
+          <div class="flex flex-col w-full gap-2">
+            <Button
+              @click="connectPrinter"
+              :disabled="!printer.isSupported.value"
+              :class="
+                printer.isConnected.value
+                  ? 'bg-card-green border-ink text-white'
+                  : 'bg-surface text-ink border-ink'
+              "
+              class="neo-press hover:bg-ink/30 flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-extrabold disabled:opacity-40"
+              :title="
+                printer.isConnected.value
+                  ? (printer.deviceName.value ?? 'Hubungkan Printer Bluetooth')
+                  : 'Hubungkan printer Bluetooth'
+              "
+            >
+              <Bluetooth class="h-4 w-4" />
+              {{ printer.isConnected.value ? printer.deviceName.value : 'Hubungkan Printer' }}
+            </Button>
+            <Button
+              @click="processPayment"
+              :disabled="cart.items.length === 0 || payAmount < finalAmount"
+              class="w-full cursor-pointer text-xs font-extrabold uppercase"
+            >
+              <Printer class="h-4 w-4" />
+              Bayar & Cetak Struk
+            </Button>
+          </div>
         </div>
       </div>
     </div>
