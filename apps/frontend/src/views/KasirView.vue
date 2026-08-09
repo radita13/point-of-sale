@@ -601,7 +601,7 @@ async function connectPrinter() {
               </button>
             </div>
           </div>
-          <div class="neo-scroll max-h-55 space-y-2 overflow-y-auto pr-1">
+          <div class="neo-scroll max-h-55 space-y-2 overflow-y-auto pr-1 pb-2">
             <div
               v-for="it in cart.items"
               :key="it.product.id"
@@ -738,7 +738,7 @@ async function connectPrinter() {
             </span>
           </div>
 
-          <div class="flex flex-col w-full gap-2">
+          <div class="flex w-full flex-col gap-2">
             <Button
               @click="connectPrinter"
               :disabled="!printer.isSupported.value"
