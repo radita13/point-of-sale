@@ -13,8 +13,6 @@ import { useSyncStore } from '@/stores/sync';
 
 const sync = useSyncStore();
 const products = ref<Product[]>([]);
-// Draft mentah per produk; string kosong/undefined = TANPA PERUBAHAN
-// (jangan diubah jadi 0 — `Number('')` = 0 bisa mengakibatkan koreksi ke nol).
 const changes = ref<Record<string, string>>({});
 
 async function refresh() {
@@ -43,7 +41,7 @@ async function saveOpname() {
   const now = Date.now();
   for (const p of products.value) {
     const raw = changes.value[p.id]?.trim();
-    if (raw === undefined || raw === '') continue; // kosong = tanpa perubahan
+    if (raw === undefined || raw === '') continue;
     const newStock = Number(raw);
     if (Number.isNaN(newStock) || newStock === p.stock) continue;
     adjustments.push({
@@ -62,7 +60,9 @@ async function saveOpname() {
   for (const a of adjustments) {
     const parse = inventoryAdjustmentSchema.safeParse(a);
     if (!parse.success) {
-      toast.error('Koreksi stok tidak valid: ' + (parse.error.issues[0]?.message ?? 'Format salah'));
+      toast.error(
+        'Koreksi stok tidak valid: ' + (parse.error.issues[0]?.message ?? 'Format salah')
+      );
       return;
     }
   }
@@ -74,17 +74,18 @@ async function saveOpname() {
   });
 
   if (navigator.onLine) {
-    const [, pushed] = await Promise.allSettled([
-      sync.runSync(),
-      api.postAdjustments(adjustments),
-    ]);
+    const [, pushed] = await Promise.allSettled([sync.runSync(), api.postAdjustments(adjustments)]);
     if (pushed.status === 'rejected') {
-      toast.success(`${adjustments.length} koreksi stok tersinkron (produk), catatan audit tertunda.`);
+      toast.success(
+        `${adjustments.length} koreksi stok tersinkron (produk), catatan audit tertunda.`
+      );
     } else {
       toast.success(`${adjustments.length} koreksi stok tersinkron.`);
     }
   } else {
-    toast.success(`${adjustments.length} koreksi stok disimpan lokal (offline) — akan tersinkron otomatis.`);
+    toast.success(
+      `${adjustments.length} koreksi stok disimpan lokal (offline) — akan tersinkron otomatis.`
+    );
   }
   changes.value = {};
   refresh();
@@ -95,12 +96,16 @@ void sync;
 <template>
   <Card class="p-4">
     <div class="mb-4 flex items-center gap-3">
-      <div class="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-offline text-white shadow-hard-sm">
+      <div
+        class="border-ink bg-offline shadow-hard-sm flex h-10 w-10 items-center justify-center rounded-xl border-2 text-white"
+      >
         <ClipboardCheck class="h-5 w-5" />
       </div>
       <div>
         <h2 class="text-lg font-extrabold">Stock Opname & Koreksi Fisik Rak</h2>
-        <p class="text-xs font-semibold text-gray-600">Sesuaikan jumlah stok sistem dengan stok riil di toko.</p>
+        <p class="text-xs font-semibold text-gray-600">
+          Sesuaikan jumlah stok sistem dengan stok riil di toko.
+        </p>
       </div>
     </div>
 
@@ -108,7 +113,11 @@ void sync;
       <div
         v-for="p in products"
         :key="p.id"
-        :class="hasChange(p.id) ? 'border-brand bg-brand/5 shadow-hard-md' : 'border-ink bg-canvas shadow-hard-sm'"
+        :class="
+          hasChange(p.id)
+            ? 'border-brand bg-brand/5 shadow-hard-md'
+            : 'border-ink bg-canvas shadow-hard-sm'
+        "
         class="flex items-center justify-between gap-3 rounded-xl border-2 p-3 transition-all"
       >
         <div class="min-w-0 flex-1">
@@ -116,7 +125,9 @@ void sync;
             <h4 class="truncate text-xs font-extrabold">{{ p.name }}</h4>
             <span
               v-if="getStockDiff(p) !== null"
-              :class="getStockDiff(p)! > 0 ? 'bg-card-green text-white' : 'bg-card-coral text-white'"
+              :class="
+                getStockDiff(p)! > 0 ? 'bg-card-green text-white' : 'bg-card-coral text-white'
+              "
               class="rounded-md px-1.5 py-0.5 font-mono text-[9px] font-black"
             >
               {{ getStockDiff(p)! > 0 ? `+${getStockDiff(p)}` : getStockDiff(p) }} {{ p.unit }}
@@ -131,16 +142,18 @@ void sync;
             :placeholder="String(p.stock)"
             :value="changes[p.id] ?? ''"
             @input="(e) => (changes[p.id] = (e.target as HTMLInputElement).value)"
-            class="w-16 rounded-md border border-ink bg-white py-1 text-center text-xs font-bold focus:outline-none focus:ring-2 focus:ring-brand"
-            :class="{ 'border-brand ring-2 ring-brand font-black text-brand': hasChange(p.id) }"
+            class="border-ink focus:ring-brand w-16 rounded-md border bg-white py-1 text-center text-xs font-bold focus:ring-2 focus:outline-none"
+            :class="{ 'border-brand ring-brand text-brand font-black ring-2': hasChange(p.id) }"
           />
           <span class="text-[10px] font-bold">{{ p.unit }}</span>
         </div>
       </div>
     </div>
 
-    <div class="mt-4 border-t-2 border-ink pt-3 text-right">
-      <Button @click="saveOpname"><Save class="h-4 w-4" /> Simpan Koreksi Stok</Button>
+    <div class="border-ink mt-4 border-t-2 pt-3 text-right">
+      <Button variant="primary" @click="saveOpname" class="cursor-pointer">
+        <Save class="h-4 w-4" /> Simpan Stok Baru
+      </Button>
     </div>
   </Card>
 </template>
