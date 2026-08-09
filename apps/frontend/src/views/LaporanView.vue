@@ -13,15 +13,16 @@ import type { Product, Transaction, TransactionItem } from '@point-of-sale/share
 import { db } from '@/db/database';
 import { formatPrice } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
+import Select, { type SelectOption } from '@/components/ui/Select.vue';
 import Badge from '@/components/ui/Badge.vue';
 
 type ReportFilter = 'today' | 'week' | 'month' | 'all';
 
-const FILTER_OPTIONS: { id: ReportFilter; label: string }[] = [
-  { id: 'today', label: 'Hari Ini' },
-  { id: 'week', label: '7 Hari Terakhir' },
-  { id: 'month', label: 'Bulan Ini' },
-  { id: 'all', label: 'Semua Waktu' },
+const FILTER_OPTIONS: SelectOption[] = [
+  { value: 'today', label: 'Hari Ini' },
+  { value: 'week', label: '7 Hari Terakhir' },
+  { value: 'month', label: 'Bulan Ini' },
+  { value: 'all', label: 'Semua Waktu' },
 ];
 
 const reportFilter = ref<ReportFilter>('today');
@@ -151,17 +152,13 @@ const productSalesSummary = computed(() => {
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-1.5">
-        <button
-          v-for="opt in FILTER_OPTIONS"
-          :key="opt.id"
-          type="button"
-          @click="reportFilter = opt.id"
-          :class="reportFilter === opt.id ? 'bg-ink text-white' : 'bg-canvas text-ink'"
-          class="neo-press rounded-xl border border-ink px-3 py-1.5 text-xs font-extrabold"
-        >
-          {{ opt.label }}
-        </button>
+      <div class="flex items-center gap-2">
+        <Select
+          v-model="reportFilter"
+          :options="FILTER_OPTIONS"
+          variant="neo"
+          class="w-44"
+        />
       </div>
     </div>
 

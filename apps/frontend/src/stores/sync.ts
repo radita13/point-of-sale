@@ -1,21 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { toast } from 'vue-sonner';
-import { useMutation } from '@tanstack/vue-query';
-import type { Product, Transaction } from '@point-of-sale/shared';
+import type { Product } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { api, getStoreId } from '@/services/api';
-import { queryClient } from '@/lib/queryClient';
 
 const BATCH_SIZE = 100;
 
-/**
- * Offline mutation queue + auto background sync (FR-SYNC-03, FR-SYNC-04).
- * `@tanstack/vue-query` useMutation membungkus pengiriman batch ke API server.
- * Dexie = queue persisten; saat online, produk & transaksi isSynced=false
- * dikirim idempotent lalu ditandai synced. Produk disinkron lebih dulu agar
- * transaksi (yang mereferensikan productId) valid saat sampai di server.
- */
 export const useSyncStore = defineStore('sync', () => {
   const pendingCount = ref(0);
   const pendingProducts = ref(0);
@@ -23,34 +14,9 @@ export const useSyncStore = defineStore('sync', () => {
   const lastSyncAt = ref<number | null>(null);
   const lastError = ref<string | null>(null);
 
-  // TanStack Query Mutation untuk Product Sync
-  const syncProductsMutation = useMutation(
-    {
-      mutationFn: (batch: Product[]) =>
-        api.syncProducts({ storeId: getStoreId(), products: batch }),
-    },
-    queryClient,
-  );
-
-  // TanStack Query Mutation untuk Transaction Sync
-  const syncTransactionsMutation = useMutation(
-    {
-      mutationFn: (batch: Transaction[]) =>
-        api.syncTransactions({ storeId: getStoreId(), transactions: batch }),
-    },
-    queryClient,
-  );
-
-  const syncing = computed(
-    () =>
-      isSyncingInternal.value ||
-      syncProductsMutation.isPending.value ||
-      syncTransactionsMutation.isPending.value,
-  );
-
+  const syncing = computed(() => isSyncingInternal.value);
   const pendingUnsynced = computed(() => pendingCount.value);
 
-  /** Toast error hanya untuk pesan yang BERUBAH — hindari spam tiap retry. */
   let lastNotifiedError: string | null = null;
   function notifyLastError() {
     if (lastError.value && lastError.value !== lastNotifiedError) {
@@ -59,8 +25,6 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  // Notifikasi stok menipis memakai endpoint server GET /inventory/low-stock
-  // (PRD §5.1.1). Dibatasi jeda agar tidak spam tiap siklus auto-sync.
   const LOW_STOCK_NOTIFY_MS = 10 * 60 * 1000;
   let lastLowStockNotify = 0;
 
@@ -79,9 +43,7 @@ export const useSyncStore = defineStore('sync', () => {
             .map((p) => `${p.name} (sisa ${p.stock} ${p.unit})`)
             .join(', ') + (low.length > 3 ? `, +${low.length - 3} lainnya` : ''),
       });
-    } catch {
-      // offline/gagal — abaikan, coba lagi di siklus berikutnya
-    }
+    } catch {}
   }
 
   async function refreshCount() {
@@ -89,10 +51,8 @@ export const useSyncStore = defineStore('sync', () => {
     pendingProducts.value = await db.products.filter((p) => p.isSynced === false).count();
   }
 
-  /** Kirim satu batch produk; return true bila ada yang tersinkron. */
   async function syncProductsBatch(): Promise<boolean> {
-    if (syncing.value) return false;
-    if (!navigator.onLine) return false;
+    if (syncing.value || !navigator.onLine) return false;
 
     const batch = await db.products
       .filter((p) => p.isSynced === false)
@@ -103,7 +63,7 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncingInternal.value = true;
     lastError.value = null;
     try {
-      const result = await syncProductsMutation.mutateAsync(batch);
+      const result = await api.syncProducts({ storeId: getStoreId(), products: batch });
       const toDelete: string[] = [];
       const toUpdate: Array<{ key: string; changes: any }> = [];
 
@@ -141,18 +101,14 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  /** Kirim satu batch transaksi; return true bila ada yang tersinkron. */
   async function syncBatch(): Promise<boolean> {
-    if (syncing.value) return false;
-    if (!navigator.onLine) return false;
+    if (syncing.value || !navigator.onLine) return false;
 
     const batch = await db.transactions
       .filter((t) => !t.isSynced)
       .limit(BATCH_SIZE)
       .toArray();
     if (batch.length === 0) {
-      // Tidak ada yang perlu disinkron — bersihkan pesan error usang agar
-      // peringatan "logout & login lagi" tidak menggantung di layar.
       lastError.value = null;
       await refreshCount();
       return false;
@@ -161,7 +117,7 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncingInternal.value = true;
     lastError.value = null;
     try {
-      const result = await syncTransactionsMutation.mutateAsync(batch);
+      const result = await api.syncTransactions({ storeId: getStoreId(), transactions: batch });
       const syncedIds = new Set([...result.synced, ...(result.skipped ?? [])]);
       await db.transactions.bulkUpdate(
         batch
@@ -170,20 +126,18 @@ export const useSyncStore = defineStore('sync', () => {
             key: t.id,
             changes: {
               isSynced: true,
-              // Server membetulkan invoiceNo yang bentrok -> perbarui lokal
-              // agar nomor di Laporan/struk sesuai dengan yang tersimpan.
-              ...(result.invoiceNoMap?.[t.id]
-                ? { invoiceNo: result.invoiceNoMap[t.id] }
-                : {}),
+              ...(result.invoiceNoMap?.[t.id] ? { invoiceNo: result.invoiceNoMap[t.id] } : {}),
             },
-          })),
+          }))
       );
       if (result.synced.length > 0) {
         lastSyncAt.value = Date.now();
         toast.success(`${result.synced.length} transaksi tersinkron.`);
       }
       if (result.skipped && result.skipped.length > 0) {
-        toast.warning(`${result.skipped.length} transaksi dilewati (produk tidak ditemukan di server).`);
+        toast.warning(
+          `${result.skipped.length} transaksi dilewati (produk tidak ditemukan di server).`
+        );
       }
       await refreshCount();
       return syncedIds.size > 0;
@@ -195,7 +149,6 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  /** Drain antrean produk dulu (FK transaksi), lalu transaksi. */
   async function runSync() {
     if (!navigator.onLine) return;
     let more = true;
@@ -216,19 +169,12 @@ export const useSyncStore = defineStore('sync', () => {
     await notifyLowStock();
   }
 
-  /**
-   * Pemulihan riwayat: tarik semua transaksi dari server lalu isi IndexedDB
-   * (idempoten per id). Dipanggil otomatis saat lokal kosong (mis. setelah
-   * clear site data / ganti HP) dan bisa dipicu manual dari layar Sync.
-   */
   async function restoreTransactionsFromServer(): Promise<number> {
     if (!navigator.onLine) return 0;
     try {
       const rows = await api.getTransactions(getStoreId());
       if (rows.length === 0) return 0;
-      const existingIds = new Set(
-        (await db.transactions.toArray()).map((t) => t.id),
-      );
+      const existingIds = new Set((await db.transactions.toArray()).map((t) => t.id));
       const toAdd = rows.filter((t) => !existingIds.has(t.id));
       if (toAdd.length > 0) await db.transactions.bulkAdd(toAdd);
       await refreshCount();
@@ -239,12 +185,6 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  /**
-   * Pemulihan katalog: tarik produk dari server lalu TIMPA IndexedDB lokal
-   * (server = sumber otoritatif utk data yang sudah synced). Dipanggil otomatis
-   * saat katalog lokal kosong (setelah clear site data / ganti HP) sehingga
-   * produk baru/edit yang sudah disinkron tidak hilang.
-   */
   async function restoreProductsFromServer(): Promise<number> {
     if (!navigator.onLine) return 0;
     try {
@@ -260,12 +200,6 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  /**
-   * Self-heal: produk yang stoknya berkurang karena transaksi yang BELUM
-   * tersinkron ditandai isSynced=false, sehingga stok terbaru ikut dikirim
-   * lewat product sync. Dipanggil sekali saat bootstrap — menangani transaksi
-   * lama (pra-fix) agar stoknya benar di server.
-   */
   async function ensurePendingStockDirty(): Promise<void> {
     try {
       const pending = await db.transactions.filter((t) => !t.isSynced).toArray();
@@ -276,9 +210,7 @@ export const useSyncStore = defineStore('sync', () => {
         .filter((p): p is Product => p !== undefined && p.isSynced !== false)
         .map((p) => ({ key: p.id, changes: { isSynced: false } }));
       if (updates.length > 0) await db.products.bulkUpdate(updates);
-    } catch {
-      // abaikan — akan ter-handle di sinkronisasi berikutnya
-    }
+    } catch {}
   }
 
   return {
@@ -295,7 +227,5 @@ export const useSyncStore = defineStore('sync', () => {
     restoreTransactionsFromServer,
     restoreProductsFromServer,
     ensurePendingStockDirty,
-    syncProductsMutation,
-    syncTransactionsMutation,
   };
 });

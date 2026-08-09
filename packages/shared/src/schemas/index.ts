@@ -1,13 +1,14 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const unitSchema = z.enum(['kg', 'pcs', 'liter', 'pak', 'saset']);
+export const unitSchema = z.enum(["kg", "pcs", "liter", "pak", "saset", "bat"]);
 
-export const paymentMethodSchema = z.enum(['CASH']);
+export const paymentMethodSchema = z.enum(["CASH"]);
 
-const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const productSchema = z.object({
-  id: z.string().regex(UUID_V4_RE, 'id must be a UUID v4'),
+  id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
   sku: z.string().min(1),
   name: z.string().min(1),
   category: z.string().min(1),
@@ -16,14 +17,17 @@ export const productSchema = z.object({
   stock: z.number().nonnegative(),
   minStock: z.number().nonnegative(),
   unit: unitSchema,
+  step: z.number().positive().optional(),
+  piecesPerUnit: z.number().int().positive().optional(),
+  smallUnit: unitSchema.optional(),
+  smallPrice: z.number().nonnegative().optional(),
   image: z.string().optional(),
   isDeleted: z.boolean().optional(),
   updatedAt: z.number().int().nonnegative(),
 });
 
-/** Versi lenient utk sync — SKU boleh kosong (auto-generate di FE; server mengisi kalau kosong). */
 export const productSyncSchema = z.object({
-  id: z.string().regex(UUID_V4_RE, 'id must be a UUID v4'),
+  id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
   sku: z.string().optional(),
   name: z.string().min(1),
   category: z.string().min(1),
@@ -32,6 +36,10 @@ export const productSyncSchema = z.object({
   stock: z.number().nonnegative(),
   minStock: z.number().nonnegative(),
   unit: unitSchema,
+  step: z.number().positive().optional(),
+  piecesPerUnit: z.number().int().positive().optional(),
+  smallUnit: unitSchema.optional(),
+  smallPrice: z.number().nonnegative().optional(),
   image: z.string().optional(),
   isSynced: z.boolean().optional(),
   isDeleted: z.boolean().optional(),
@@ -44,7 +52,7 @@ export const productSyncPayloadSchema = z.object({
 });
 
 export const transactionItemSchema = z.object({
-  productId: z.string().regex(UUID_V4_RE, 'invalid productId'),
+  productId: z.string().regex(UUID_V4_RE, "invalid productId"),
   productName: z.string().min(1),
   sku: z.string().optional(),
   qty: z.number().positive(),
@@ -55,7 +63,7 @@ export const transactionItemSchema = z.object({
 });
 
 export const transactionSchema = z.object({
-  id: z.string().regex(UUID_V4_RE, 'id must be a UUID v4'),
+  id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
   invoiceNo: z.string().min(1),
   timestamp: z.number().int().positive(),
   items: z.array(transactionItemSchema).min(1),
@@ -76,14 +84,19 @@ export const syncStatusQuerySchema = z.object({
   ids: z
     .string()
     .refine((s) => s.length > 0, {
-      message: 'ids query param is required',
+      message: "ids query param is required",
     })
-    .transform((s) => s.split(',').map((x) => x.trim()).filter(Boolean)),
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
 });
 
 export const inventoryAdjustmentSchema = z.object({
-  id: z.string().regex(UUID_V4_RE, 'invalid id'),
-  productId: z.string().regex(UUID_V4_RE, 'invalid productId'),
+  id: z.string().regex(UUID_V4_RE, "invalid id"),
+  productId: z.string().regex(UUID_V4_RE, "invalid productId"),
   quantity: z.number().nonnegative(),
   note: z.string().optional(),
   adjustedAt: z.number().int().positive(),

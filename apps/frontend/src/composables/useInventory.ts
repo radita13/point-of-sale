@@ -1,14 +1,13 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, reactive } from 'vue';
 import { toast } from 'vue-sonner';
 import type { Product } from '@point-of-sale/shared';
 import { productSyncSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { makeUuid, seedProductsIfEmpty } from '@/db/seed';
 import { useSyncStore } from '@/stores/sync';
-import { useForm } from '@tanstack/vue-form';
 
 const CATEGORIES = ['Beras & Minyak', 'Bumbu Dapur', 'Minuman', 'Rokok & Snack'];
-const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset'] as const;
+const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset', 'bat'] as const;
 
 export function useInventory() {
   function emptyForm(): Product {
@@ -30,7 +29,7 @@ export function useInventory() {
   const products = ref<Product[]>([]);
   const showModal = ref(false);
   const isEdit = ref(false);
-  const form = ref<Product>(emptyForm());
+  const form = reactive<Product>(emptyForm());
   const deleteTarget = ref<Product | null>(null);
   const imageSizeKb = ref(0);
 
@@ -51,30 +50,39 @@ export function useInventory() {
 
   onMounted(refreshWithRestore);
 
-  const tanstackForm = useForm({
-    defaultValues: emptyForm(),
-    onSubmit: async ({ value }) => {
-      const result = productSyncSchema.safeParse(value);
-      if (!result.success) {
-        toast.error(result.error.issues[0]?.message || 'Input produk tidak valid!');
-        return;
+  async function saveProduct() {
+    const product = { ...form } as Product;
+    for (const key of ['step', 'piecesPerUnit', 'smallPrice'] as const) {
+      const n = (product as unknown as Record<string, unknown>)[key];
+      if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) delete (product as unknown as Record<string, unknown>)[key];
+    }
+    if (product.piecesPerUnit === undefined || product.piecesPerUnit <= 1) {
+      delete product.piecesPerUnit;
+      delete product.smallUnit;
+      delete product.smallPrice;
+    } else {
+      product.smallUnit = 'bat';
+    }
+    const result = productSyncSchema.safeParse(product);
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message || 'Input produk tidak valid!');
+      return;
+    }
+    const saved = { ...product, updatedAt: Date.now(), isSynced: false } as Product;
+    try {
+      if (isEdit.value) {
+        await db.products.put(saved);
+        toast.success(`Produk "${saved.name}" diperbarui.`);
+      } else {
+        await db.products.add(saved);
+        toast.success(`Produk baru "${saved.name}" ditambahkan.`);
       }
-      const product = { ...value, updatedAt: Date.now(), isSynced: false } as Product;
-      try {
-        if (isEdit.value) {
-          await db.products.put(product);
-          toast.success(`Produk "${product.name}" diperbarui.`);
-        } else {
-          await db.products.add(product);
-          toast.success(`Produk baru "${product.name}" ditambahkan.`);
-        }
-        closeModal();
-        refresh();
-      } catch (err) {
-        toast.error(`Gagal menyimpan produk: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    },
-  });
+      closeModal();
+      refresh();
+    } catch (err) {
+      toast.error(`Gagal menyimpan produk: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
 
   async function generateSku(): Promise<string> {
     for (let i = 0; i < 10; i++) {
@@ -88,22 +96,18 @@ export function useInventory() {
   async function openAdd() {
     isEdit.value = false;
     const initial = { ...emptyForm(), sku: await generateSku() };
-    form.value = initial;
-    tanstackForm.reset(initial);
+    Object.assign(form, initial);
     imageSizeKb.value = 0;
     showModal.value = true;
   }
 
   async function regenerateSku() {
-    const newSku = await generateSku();
-    form.value.sku = newSku;
-    tanstackForm.setFieldValue('sku', newSku);
+    form.sku = await generateSku();
   }
 
   function openEdit(p: Product) {
     isEdit.value = true;
-    form.value = { ...p };
-    tanstackForm.reset({ ...p });
+    Object.assign(form, p);
     imageSizeKb.value = p.image ? formatImageSize(p.image) : 0;
     showModal.value = true;
   }
@@ -168,21 +172,15 @@ export function useInventory() {
     if (!file) return;
     try {
       const compressed = await compressImage(file);
-      form.value.image = compressed;
-      tanstackForm.setFieldValue('image', compressed);
+      form.image = compressed;
       imageSizeKb.value = formatImageSize(compressed);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal memuat foto');
-      form.value.image = undefined;
-      tanstackForm.setFieldValue('image', undefined);
+      form.image = undefined;
       imageSizeKb.value = 0;
     } finally {
       input.value = '';
     }
-  }
-
-  async function saveProduct() {
-    await tanstackForm.handleSubmit();
   }
 
   function askDelete(p: Product) {

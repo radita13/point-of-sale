@@ -28,9 +28,6 @@ onBeforeMount(() => {
   window.addEventListener('online', handleOnline);
   window.addEventListener('offline', handleOffline);
   sync.refreshCount();
-  // Auto-sync berkala (30 detik): kalau ada antrean offline yang belum
-  // tersinkron, dikirim otomatis begitu backend/sambungan kembali normal —
-  // tanpa perlu menekan tombol apa pun.
   syncTimer = window.setInterval(() => {
     if (navigator.onLine) sync.runSync();
   }, 30_000);
@@ -72,17 +69,26 @@ function go(key: string) {
 </script>
 
 <template>
-  <div class="min-h-[100dvh] bg-canvas pb-20 lg:pb-0">
+  <div class="bg-canvas min-h-dvh pb-20 lg:pb-0">
     <!-- Top header -->
     <header class="sticky top-0 z-30 mx-auto max-w-7xl px-3 pt-3 sm:px-6">
-      <div class="flex items-center justify-between gap-3 rounded-2xl border-2 border-ink bg-surface p-3 shadow-hard-md sm:p-4">
+      <div
+        class="border-ink bg-surface shadow-hard-md flex items-center justify-between gap-3 rounded-2xl border-2 p-3 sm:p-4"
+      >
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-brand text-white shadow-hard-sm">
+          <div
+            class="border-ink bg-brand shadow-hard-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 text-white"
+          >
             <Store class="h-5 w-5" />
           </div>
           <div class="leading-tight">
-            <h1 class="text-base font-extrabold sm:text-lg">{{ storeSettings.settings.storeName }}</h1>
-            <p class="text-[11px] font-bold text-ink/50"><span class="font-extrabold text-ink/70">Owner: </span>{{ storeSettings.settings.ownerName.toUpperCase() }}</p>
+            <h1 class="text-base font-extrabold sm:text-lg">
+              {{ storeSettings.settings.storeName }}
+            </h1>
+            <p class="text-ink/50 text-[11px] font-bold">
+              <span class="text-ink/70 font-extrabold">Owner: </span
+              >{{ storeSettings.settings.ownerName.toUpperCase() }}
+            </p>
           </div>
         </div>
 
@@ -91,7 +97,10 @@ function go(key: string) {
             :class="network.isOnline ? 'bg-brand text-white' : 'bg-offline text-ink'"
             class="h-9 rounded-xl px-3"
           >
-            <span class="h-2 w-2 rounded-full" :class="network.isOnline ? 'bg-white animate-pulse' : 'bg-red-600'" />
+            <span
+              class="h-2 w-2 rounded-full"
+              :class="network.isOnline ? 'animate-pulse bg-white' : 'bg-red-600'"
+            />
             {{ network.isOnline ? 'ONLINE' : 'OFFLINE' }}
           </Badge>
         </div>
@@ -102,13 +111,15 @@ function go(key: string) {
 
     <!-- Desktop tab nav -->
     <nav class="mx-auto mt-3 hidden max-w-7xl px-6 lg:block">
-      <div class="flex items-center gap-2 rounded-2xl border-2 border-ink bg-surface p-3 shadow-hard-md">
+      <div
+        class="border-ink bg-surface shadow-hard-md flex items-center gap-2 rounded-2xl border-2 p-3"
+      >
         <button
           v-for="t in tabs"
           :key="t.key"
           @click="go(t.key)"
           :class="activeTab === t.key ? activeClasses(t.key) : 'bg-canvas text-ink hover:bg-ink/10'"
-          class="neo-press flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border-2 border-ink px-3 text-xs font-extrabold"
+          class="neo-press border-ink flex h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-2 px-3 text-xs font-extrabold whitespace-nowrap"
         >
           <component :is="t.icon" class="h-4 w-4 shrink-0" />
           <span>{{ t.label }}</span>
@@ -121,16 +132,16 @@ function go(key: string) {
     </main>
 
     <!-- Mobile bottom nav -->
-    <nav class="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-surface px-1 py-1.5 lg:hidden">
+    <nav
+      class="border-ink bg-surface fixed inset-x-0 bottom-0 z-40 border-t-2 px-1 py-1.5 lg:hidden"
+    >
       <div class="flex items-center justify-around text-center">
         <button
           v-for="t in tabs"
           :key="t.key"
           @click="go(t.key)"
-          :class="activeTab === t.key
-            ? activeClasses(t.key)
-            : 'border-transparent text-ink'"
-          class="flex flex-1 flex-col items-center justify-center rounded-xl border-2 px-1 py-1 font-extrabold text-[10px] transition-all"
+          :class="activeTab === t.key ? activeClasses(t.key) : 'text-ink border-transparent'"
+          class="flex flex-1 flex-col items-center justify-center rounded-xl border-2 px-1 py-1 text-[10px] font-extrabold transition-all"
         >
           <component :is="t.icon" class="mb-0.5 h-4 w-4" />
           <span>{{ t.label }}</span>

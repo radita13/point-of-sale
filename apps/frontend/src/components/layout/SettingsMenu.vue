@@ -61,16 +61,18 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="fixed bottom-20 right-4 z-50 lg:bottom-6 lg:right-6">
+  <div class="fixed right-4 bottom-20 z-50 lg:right-6 lg:bottom-6">
     <div v-if="open" class="fixed inset-0" @click="open = false" />
 
     <Transition name="menu-pop">
       <div
         v-if="open"
-        class="absolute bottom-16 right-0 w-64 overflow-hidden rounded-2xl border-2 border-ink bg-surface shadow-hard-lg"
+        class="border-ink bg-surface shadow-hard-lg absolute right-0 bottom-16 w-64 overflow-hidden rounded-2xl border-2"
       >
-        <div class="flex items-center justify-between border-b-2 border-ink bg-ink px-3 py-2 text-white">
-          <span class="text-xs font-extrabold uppercase tracking-wider">Pengaturan</span>
+        <div
+          class="border-ink bg-ink flex items-center justify-between border-b-2 px-3 py-2 text-white"
+        >
+          <span class="text-xs font-extrabold tracking-wider uppercase">Pengaturan</span>
           <span
             class="rounded-full border border-white/40 px-2 py-0.5 text-[9px] font-black"
             :class="network.isOnline ? 'bg-card-green' : 'bg-offline text-ink'"
@@ -83,14 +85,18 @@ async function handleLogout() {
           <button
             type="button"
             @click="openProfileModal"
-            class="neo-press flex w-full items-center gap-2.5 rounded-xl border-2 border-ink bg-canvas p-2.5 text-left"
+            class="neo-press border-ink bg-canvas flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left"
           >
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card-purple text-white">
+            <span
+              class="bg-card-purple flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+            >
               <Store class="h-4 w-4" />
             </span>
             <span class="min-w-0 flex-1">
               <span class="block text-xs font-extrabold">Profil Toko</span>
-              <span class="block truncate text-[10px] font-semibold text-gray-600">Nama, Alamat &amp; Kontak Struk</span>
+              <span class="block truncate text-[10px] font-semibold text-gray-600"
+                >Nama, Alamat &amp; Kontak Struk</span
+              >
             </span>
           </button>
 
@@ -98,18 +104,22 @@ async function handleLogout() {
             type="button"
             @click="handleSync"
             :disabled="sync.syncing"
-            class="neo-press flex w-full items-center gap-2.5 rounded-xl border-2 border-ink bg-canvas p-2.5 text-left disabled:opacity-60"
+            class="neo-press border-ink bg-canvas flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left disabled:opacity-60"
           >
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
+            <span
+              class="bg-brand flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+            >
               <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': sync.syncing }" />
             </span>
             <span class="min-w-0 flex-1">
               <span class="block text-xs font-extrabold">Sinkronkan Sekarang</span>
-              <span class="block truncate text-[10px] font-semibold text-gray-600">{{ pendingText }}</span>
+              <span class="block truncate text-[10px] font-semibold text-gray-600">{{
+                pendingText
+              }}</span>
             </span>
             <span
               v-if="totalPending > 0"
-              class="flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-card-coral px-1 text-[10px] font-black text-white"
+              class="border-ink bg-card-coral flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-black text-white"
             >
               {{ totalPending > 99 ? '99+' : totalPending }}
             </span>
@@ -118,9 +128,11 @@ async function handleLogout() {
           <button
             type="button"
             @click="handleLogout"
-            class="neo-press flex w-full items-center gap-2.5 rounded-xl border-2 border-ink bg-card-coral/10 p-2.5 text-card-coral"
+            class="neo-press border-ink bg-card-coral/10 text-card-coral flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5"
           >
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card-coral text-white">
+            <span
+              class="bg-card-coral flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+            >
               <LogOut class="h-4 w-4" />
             </span>
             <span class="text-xs font-extrabold">Keluar</span>
@@ -134,12 +146,12 @@ async function handleLogout() {
       @click="open = !open"
       :title="open ? 'Tutup pengaturan' : 'Pengaturan'"
       :aria-expanded="open"
-      class="neo-press relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-ink bg-brand text-white shadow-hard-md"
+      class="neo-press border-ink bg-brand shadow-hard-md relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 text-white"
     >
       <Settings class="h-5 w-5 transition-transform duration-200" :class="{ 'rotate-45': open }" />
       <span
         v-if="!open && totalPending > 0"
-        class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-ink bg-card-coral px-1 text-[10px] font-black text-white"
+        class="border-ink bg-card-coral absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-black text-white"
       >
         {{ totalPending > 99 ? '99+' : totalPending }}
       </span>
@@ -148,14 +160,16 @@ async function handleLogout() {
     <!-- Modal Form Profil Toko -->
     <div
       v-if="showProfileModal"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
     >
-      <div class="w-full max-w-md rounded-2xl border-2 border-ink bg-surface p-5 shadow-hard-xl sm:p-6 text-left">
-        <div class="mb-4 flex items-center justify-between border-b-2 border-ink pb-3">
+      <div
+        class="border-ink bg-surface shadow-hard-xl w-full max-w-md rounded-2xl border-2 p-5 text-left sm:p-6"
+      >
+        <div class="border-ink mb-4 flex items-center justify-between border-b-2 pb-3">
           <h3 class="flex items-center gap-2 text-base font-extrabold">
-            <Store class="h-5 w-5 text-brand" /> Profil &amp; Identitas Toko
+            <Store class="text-brand h-5 w-5" /> Profil &amp; Identitas Toko
           </h3>
-          <button @click="showProfileModal = false" class="p-1 text-gray-600 hover:text-card-coral">
+          <button @click="showProfileModal = false" class="hover:text-card-coral p-1 text-gray-600">
             <X class="h-5 w-5" />
           </button>
         </div>
@@ -166,7 +180,7 @@ async function handleLogout() {
             <input
               v-model="profileForm.storeName"
               placeholder="Contoh: TOKO BERKAH SEMBAKO"
-              class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-brand"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
             />
           </div>
 
@@ -175,7 +189,7 @@ async function handleLogout() {
             <input
               v-model="profileForm.ownerName"
               placeholder="Contoh: Pak Budi"
-              class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-brand"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
             />
           </div>
 
@@ -184,7 +198,7 @@ async function handleLogout() {
             <input
               v-model="profileForm.address"
               placeholder="Contoh: Jl. Sembako Raya No. 88, Manado"
-              class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-brand"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
             />
           </div>
 
@@ -193,7 +207,7 @@ async function handleLogout() {
             <input
               v-model="profileForm.phone"
               placeholder="Contoh: Telp/WA: 0812-3456-7890"
-              class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-brand"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
             />
           </div>
 
@@ -203,21 +217,21 @@ async function handleLogout() {
               v-model="profileForm.receiptFooter"
               rows="2"
               placeholder="*** TERIMA KASIH ***"
-              class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-semibold focus:ring-2 focus:outline-none"
             />
           </div>
 
-          <div class="grid grid-cols-2 gap-2 border-t-2 border-ink pt-3">
+          <div class="border-ink grid grid-cols-2 gap-2 border-t-2 pt-3">
             <button
               type="button"
               @click="showProfileModal = false"
-              class="neo-press rounded-xl border-2 border-ink bg-canvas py-2 text-xs font-extrabold"
+              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
             >
               Batal
             </button>
             <button
               type="submit"
-              class="neo-press flex items-center justify-center gap-1.5 rounded-xl border-2 border-ink bg-brand py-2 text-xs font-extrabold text-white shadow-hard-sm"
+              class="neo-press border-ink bg-brand shadow-hard-sm flex items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-xs font-extrabold text-white"
             >
               <Save class="h-4 w-4" /> Simpan Profil
             </button>

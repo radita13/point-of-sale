@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
+/* Desing.md */
 @theme {
-  /* Neo-Brutalism palette (DESIGN.md) */
   --color-canvas: #eee8db;
   --color-surface: #f4f0e6;
   --color-ink: #121212;
@@ -35,7 +35,7 @@
 @layer utilities {
   /* Neo-brutalist press state */
   .neo-press {
-    @apply transition-transform duration-[50ms] ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+    @apply transition-transform duration-50ms ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
   }
   /* Scrollbar neo */
   .neo-scroll::-webkit-scrollbar {
@@ -50,6 +50,16 @@
     background: var(--color-ink);
     border-radius: 4px;
   }
+}
+
+/* Hide number input spinners / arrows */
+input[type="number"].no-spin::-webkit-inner-spin-button,
+input[type="number"].no-spin::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].no-spin {
+  -moz-appearance: textfield;
 }
 
 /* Bottom sheet slide-up animation (Code_Design.md) */
@@ -90,7 +100,7 @@
   color: #ffffff !important;
 }
 
-/* Toast Message Status Indicator Badge (Di Atas Pesan) */
+/* Toast Message Status Indicator Badge */
 [data-sonner-toast] [data-title]::before {
   display: inline-block;
   margin-bottom: 0.25rem;

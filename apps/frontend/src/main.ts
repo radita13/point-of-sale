@@ -38,6 +38,18 @@ async function bootstrap() {
   await useSyncStore().ensurePendingStockDirty();
 
   app.use(router);
+  window.addEventListener(
+    'wheel',
+    (e) => {
+      if (
+        (document.activeElement as HTMLElement)?.tagName === 'INPUT' &&
+        (document.activeElement as HTMLInputElement).type === 'number'
+      ) {
+        e.preventDefault();
+      }
+    },
+    { passive: false }
+  );
   app.component('Toaster', Toaster);
   app.mount('#app');
 }

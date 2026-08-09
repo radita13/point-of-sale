@@ -525,13 +525,14 @@ async function connectPrinter() {
         <div class="flex w-full items-center gap-2">
           <Button
             @click="connectPrinter"
+            variant="secondary"
             :disabled="!printer.isSupported.value"
             :class="
               printer.isConnected.value
                 ? 'bg-card-green border-ink text-white'
                 : 'bg-surface text-ink border-ink'
             "
-            class="neo-press hover:bg-ink/30 flex h-10 w-48 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-extrabold disabled:opacity-40"
+            class="flex-1 cursor-pointer"
             :title="
               printer.isConnected.value
                 ? (printer.deviceName.value ?? 'Hubungkan Printer Bluetooth')
@@ -542,9 +543,10 @@ async function connectPrinter() {
             {{ printer.isConnected.value ? printer.deviceName.value : 'Hubungkan Printer' }}
           </Button>
           <Button
+            variant="primary"
             @click="processPayment"
             :disabled="cart.items.length === 0 || payAmount < finalAmount"
-            class="flex-1 cursor-pointer text-xs font-extrabold uppercase"
+            class="flex-1 cursor-pointer"
           >
             <Printer class="h-4 w-4" />
             Bayar & Cetak Struk
@@ -741,13 +743,14 @@ async function connectPrinter() {
           <div class="flex w-full flex-col gap-2">
             <Button
               @click="connectPrinter"
+              variant="secondary"
               :disabled="!printer.isSupported.value"
               :class="
                 printer.isConnected.value
                   ? 'bg-card-green border-ink text-white'
                   : 'bg-surface text-ink border-ink'
               "
-              class="neo-press hover:bg-ink/30 flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-extrabold disabled:opacity-40"
+              class="w-full cursor-pointer"
               :title="
                 printer.isConnected.value
                   ? (printer.deviceName.value ?? 'Hubungkan Printer Bluetooth')
@@ -758,9 +761,10 @@ async function connectPrinter() {
               {{ printer.isConnected.value ? printer.deviceName.value : 'Hubungkan Printer' }}
             </Button>
             <Button
+              variant="primary"
               @click="processPayment"
               :disabled="cart.items.length === 0 || payAmount < finalAmount"
-              class="w-full cursor-pointer text-xs font-extrabold uppercase"
+              class="w-full cursor-pointer"
             >
               <Printer class="h-4 w-4" />
               Bayar & Cetak Struk

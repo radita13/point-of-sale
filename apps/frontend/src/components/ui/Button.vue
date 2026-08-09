@@ -8,7 +8,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: 'bg-brand text-white hover:bg-brand-hover shadow-hard-md',
-        secondary: 'bg-surface text-ink hover:bg-canvas shadow-hard-sm',
+        secondary: 'bg-surface text-ink hover:bg-canvas shadow-hard-md',
         destructive: 'bg-card-coral text-white border-ink shadow-hard-sm hover:brightness-95',
         dark: 'bg-ink text-white hover:bg-brand shadow-hard-sm',
         ghost: 'bg-transparent border-ink text-ink hover:bg-canvas',
@@ -21,7 +21,7 @@ const buttonVariants = cva(
       },
     },
     defaultVariants: { variant: 'primary', size: 'md' },
-  },
+  }
 );
 
 const props = defineProps<{
