@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Desing.md */
+/* Design.md */
 @theme {
   --color-canvas: #eee8db;
   --color-surface: #f4f0e6;
@@ -35,7 +35,7 @@
 @layer utilities {
   /* Neo-brutalist press state */
   .neo-press {
-    @apply transition-transform duration-50ms ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
+    @apply transition-transform duration-[50ms] ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
   }
   /* Scrollbar neo */
   .neo-scroll::-webkit-scrollbar {
@@ -62,7 +62,7 @@ input[type="number"].no-spin {
   -moz-appearance: textfield;
 }
 
-/* Bottom sheet slide-up animation (Code_Design.md) */
+/* Bottom sheet slide-up animation*/
 @keyframes slide-up {
   from {
     transform: translateY(100%);
@@ -75,7 +75,7 @@ input[type="number"].no-spin {
   animation: slide-up 0.22s ease-out;
 }
 
-/* Custom Vue-Sonner Toast Neo-Brutalism Style (Code_Design.md) */
+/* Custom Vue-Sonner Toast Neo-Brutalism Style */
 [data-sonner-toast] {
   background-color: #121212 !important;
   color: #ffffff !important;
