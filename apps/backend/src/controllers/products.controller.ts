@@ -12,11 +12,60 @@ export async function getProducts(req: any, res: any): Promise<void> {
     return;
   }
   if (!(await requireStoreAccess(req, res, storeId))) return;
+
+  const page = req.query.page !== undefined ? Math.max(1, parseInt(String(req.query.page), 10) || 1) : undefined;
+  const limit = req.query.limit !== undefined ? Math.max(1, parseInt(String(req.query.limit), 10) || 10) : 10;
+
   try {
+    const where = { storeId, isDeleted: false };
+
+    if (page !== undefined) {
+      const [total, products] = await Promise.all([
+        prisma.product.count({ where }),
+        prisma.product.findMany({
+          where,
+          orderBy: { name: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+      ]);
+
+      const formatted = products.map((p: any) => ({
+        id: p.serverId,
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        costPrice: p.costPrice.toNumber(),
+        sellingPrice: p.sellingPrice.toNumber(),
+        stock: p.stock.toNumber(),
+        minStock: p.minStock.toNumber(),
+        unit: p.unit,
+        step: p.step?.toNumber() ?? undefined,
+        piecesPerUnit: p.piecesPerUnit ?? undefined,
+        smallUnit: p.smallUnit ?? undefined,
+        smallPrice: p.smallPrice?.toNumber() ?? undefined,
+        image: p.image,
+        isDeleted: p.isDeleted,
+        updatedAt: p.updatedAt.getTime(),
+      }));
+
+      res.json({
+        data: formatted,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+      return;
+    }
+
     const products = await prisma.product.findMany({
-      where: { storeId, isDeleted: false },
+      where,
       orderBy: { name: 'asc' },
     });
+
     res.json(
       products.map((p: any) => ({
         id: p.serverId,
@@ -28,6 +77,10 @@ export async function getProducts(req: any, res: any): Promise<void> {
         stock: p.stock.toNumber(),
         minStock: p.minStock.toNumber(),
         unit: p.unit,
+        step: p.step?.toNumber() ?? undefined,
+        piecesPerUnit: p.piecesPerUnit ?? undefined,
+        smallUnit: p.smallUnit ?? undefined,
+        smallPrice: p.smallPrice?.toNumber() ?? undefined,
         image: p.image,
         isDeleted: p.isDeleted,
         updatedAt: p.updatedAt.getTime(),
@@ -68,6 +121,10 @@ export async function syncProducts(req: any, res: any): Promise<void> {
       stock: p.stock,
       minStock: p.minStock,
       unit: p.unit,
+      step: p.step ?? null,
+      piecesPerUnit: p.piecesPerUnit ?? null,
+      smallUnit: p.smallUnit ?? null,
+      smallPrice: p.smallPrice ?? null,
       image,
       isDeleted: p.isDeleted ?? false,
       storeId,
