@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, h } from 'vue';
-import { Package, Pencil, Trash2, X, RefreshCw } from 'lucide-vue-next';
+import { Package, Pencil, Trash2, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import { formatPrice } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
+import Select from '@/components/ui/Select.vue';
 import { useInventory } from '@/composables/useInventory';
 
 import {
@@ -12,9 +13,11 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   FlexRender,
   createColumnHelper,
   type SortingState,
+  type PaginationState,
 } from '@tanstack/vue-table';
 
 const {
@@ -39,6 +42,10 @@ const {
 const columnHelper = createColumnHelper<Product>();
 const sorting = ref<SortingState>([]);
 const globalFilter = ref('');
+const pagination = ref<PaginationState>({
+  pageIndex: 0,
+ pageSize: 10,
+});
 
 const columns = [
   columnHelper.accessor('image', {
@@ -47,11 +54,20 @@ const columns = [
       const src = info.getValue();
       const name = info.row.original.name;
       if (src) {
-        return h('img', { src, alt: name, class: 'h-10 w-10 rounded-lg border border-ink bg-white object-cover' });
+        return h('img', {
+          src,
+          alt: name,
+          class: 'h-10 w-10 rounded-lg border border-ink bg-white object-cover',
+        });
       }
-      return h('div', { class: 'flex h-10 w-10 items-center justify-center rounded-lg border border-ink bg-white text-ink/30' }, [
-        h(Package, { class: 'h-5 w-5' }),
-      ]);
+      return h(
+        'div',
+        {
+          class:
+            'flex h-10 w-10 items-center justify-center rounded-lg border border-ink bg-white text-ink/30',
+        },
+        [h(Package, { class: 'h-5 w-5' })]
+      );
     },
   }),
   columnHelper.accessor('sku', {
@@ -64,11 +80,17 @@ const columns = [
   }),
   columnHelper.accessor('category', {
     header: 'Kategori',
-    cell: (info) => h('span', { class: 'rounded-md border border-ink bg-canvas px-2 py-0.5 text-[10px]' }, info.getValue()),
+    cell: (info) =>
+      h(
+        'span',
+        { class: 'rounded-md border border-ink bg-canvas px-2 py-0.5 text-[10px]' },
+        info.getValue()
+      ),
   }),
   columnHelper.accessor('sellingPrice', {
     header: 'Harga Jual',
-    cell: (info) => h('span', { class: 'font-extrabold text-brand' }, `Rp ${formatPrice(info.getValue())}`),
+    cell: (info) =>
+      h('span', { class: 'font-extrabold text-brand' }, `Rp ${formatPrice(info.getValue())}`),
   }),
   columnHelper.accessor((row) => `${row.stock} ${row.unit}`, {
     id: 'stock',
@@ -87,7 +109,7 @@ const columns = [
             isLow ? 'bg-card-coral text-white' : 'bg-card-green text-white'
           }`,
         },
-        isLow ? 'STOK MENIPIS' : 'AMAN',
+        isLow ? 'STOK MENIPIS' : 'AMAN'
       );
     },
   }),
@@ -100,17 +122,19 @@ const columns = [
           'button',
           {
             onClick: () => openEdit(info.row.original),
-            class: 'neo-press rounded-lg border border-ink bg-white p-1.5 hover:bg-canvas',
+            class:
+              'neo-press rounded-lg border border-ink bg-white p-1.5 hover:bg-canvas cursor-pointer',
           },
-          [h(Pencil, { class: 'h-4 w-4' })],
+          [h(Pencil, { class: 'h-4 w-4' })]
         ),
         h(
           'button',
           {
             onClick: () => askDelete(info.row.original),
-            class: 'neo-press rounded-lg border border-ink bg-card-coral p-1.5 text-white hover:brightness-95',
+            class:
+              'neo-press rounded-lg border border-ink bg-card-coral p-1.5 text-white hover:brightness-95 cursor-pointer',
           },
-          [h(Trash2, { class: 'h-4 w-4' })],
+          [h(Trash2, { class: 'h-4 w-4' })]
         ),
       ]),
   }),
@@ -126,38 +150,59 @@ const table = useVueTable({
     get globalFilter() {
       return globalFilter.value;
     },
+    get pagination() {
+      return pagination.value;
+    },
   },
   onSortingChange: (updaterOrValue) => {
-    sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue;
+    sorting.value =
+      typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue;
   },
   onGlobalFilterChange: (updaterOrValue) => {
-    globalFilter.value = typeof updaterOrValue === 'function' ? updaterOrValue(globalFilter.value) : updaterOrValue;
+    globalFilter.value =
+      typeof updaterOrValue === 'function' ? updaterOrValue(globalFilter.value) : updaterOrValue;
+  },
+  onPaginationChange: (updaterOrValue) => {
+    pagination.value =
+      typeof updaterOrValue === 'function' ? updaterOrValue(pagination.value) : updaterOrValue;
   },
   getCoreRowModel: getCoreRowModel(),
   getSortedRowModel: getSortedRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
 });
 </script>
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-ink bg-surface p-4 shadow-hard-md">
+    <div
+      class="border-ink bg-surface shadow-hard-md flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 p-4"
+    >
       <div class="flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-ink bg-card-green text-white shadow-hard-sm">
+        <div
+          class="border-ink bg-card-green shadow-hard-sm flex h-10 w-10 items-center justify-center rounded-xl border-2 text-white"
+        >
           <Package class="h-5 w-5" />
         </div>
         <div>
           <h2 class="text-lg font-extrabold">Manajemen Inventaris Sembako</h2>
-          <p class="text-xs font-semibold text-gray-600">Total Katalog: {{ products.length }} Barang (SKU)</p>
+          <p class="text-xs font-semibold text-gray-600">
+            Total Katalog: {{ products.length }} Barang (SKU)
+          </p>
         </div>
       </div>
-      <Button @click="openAdd"><Package class="h-4 w-4" /> Tambah Barang Baru</Button>
+      <Button @click="openAdd" class="cursor-pointer">
+        <Package class="h-4 w-4" />
+        Tambah Barang Baru
+      </Button>
     </div>
 
     <Card class="overflow-hidden">
       <div class="neo-scroll overflow-x-auto">
         <table class="w-full border-collapse text-left text-xs font-bold">
-          <thead class="border-b-2 border-ink bg-ink text-[11px] uppercase tracking-wider text-white">
+          <thead
+            class="border-ink bg-ink border-b-2 text-[11px] tracking-wider text-white uppercase"
+          >
             <tr v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id">
               <th
                 v-for="header in headerGroup.headers"
@@ -176,29 +221,94 @@ const table = useVueTable({
               </th>
             </tr>
           </thead>
-          <tbody class="divide-y-2 divide-ink">
+          <tbody class="divide-ink divide-y-2">
             <tr v-for="row in table.getRowModel().rows" :key="row.id" class="hover:bg-canvas">
               <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="p-3">
-                <FlexRender
-                  :render="cell.column.columnDef.cell"
-                  :props="cell.getContext()"
-                />
+                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
               </td>
             </tr>
             <tr v-if="table.getRowModel().rows.length === 0">
-              <td colspan="8" class="p-4 text-center text-gray-500 font-semibold">Tidak ada barang inventaris.</td>
+              <td colspan="8" class="p-4 text-center font-semibold text-gray-500">
+                Tidak ada barang inventaris.
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination controls -->
+      <div
+        v-if="table.getFilteredRowModel().rows.length > 0"
+        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-3 border-t-2 p-3 text-xs font-extrabold"
+      >
+        <div class="text-gray-600">
+          Menampilkan {{ table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 }}
+          -
+          {{
+            Math.min(
+              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+              table.getFilteredRowModel().rows.length
+            )
+          }}
+          dari {{ table.getFilteredRowModel().rows.length }} barang
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1">
+            <span>Baris per halaman:</span>
+            <select
+              :value="table.getState().pagination.pageSize"
+              @change="(e: Event) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
+              class="border-ink bg-white rounded-lg border-2 px-2 py-1 text-xs font-extrabold focus:outline-none"
+            >
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <Button
+              variant="secondary"
+              size="icon"
+              :disabled="!table.getCanPreviousPage()"
+              @click="table.previousPage()"
+              class="h-8 w-8 cursor-pointer disabled:opacity-40"
+            >
+              <ChevronLeft class="h-4 w-4" />
+            </Button>
+            <span class="px-2">
+              {{ table.getState().pagination.pageIndex + 1 }} / {{ table.getPageCount() }}
+            </span>
+            <Button
+              variant="secondary"
+              size="icon"
+              :disabled="!table.getCanNextPage()"
+              @click="table.nextPage()"
+              class="h-8 w-8 cursor-pointer disabled:opacity-40"
+            >
+              <ChevronRight class="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
     </Card>
 
     <!-- Add/Edit modal -->
-    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div class="w-full max-w-lg rounded-2xl border-2 border-ink bg-surface p-5 shadow-hard-xl sm:p-6">
-        <div class="mb-4 flex items-center justify-between border-b-2 border-ink pb-3">
-          <h3 class="text-base font-extrabold">{{ isEdit ? 'Edit Data Barang' : 'Tambah Barang Baru' }}</h3>
-          <button @click="closeModal" class="p-1 text-gray-600 hover:text-card-coral"><X class="h-5 w-5" /></button>
+    <div
+      v-if="showModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+    >
+      <div
+        class="border-ink bg-surface shadow-hard-xl w-full max-w-lg rounded-2xl border-2 p-5 sm:p-6"
+      >
+        <div class="border-ink mb-4 flex items-center justify-between border-b-2 pb-3">
+          <h3 class="text-base font-extrabold">
+            {{ isEdit ? 'Edit Data Barang' : 'Tambah Barang Baru' }}
+          </h3>
+          <button @click="closeModal" class="hover:text-card-coral p-1 text-gray-600">
+            <X class="h-5 w-5" />
+          </button>
         </div>
 
         <form @submit.prevent="saveProduct" class="space-y-3 text-xs font-bold">
@@ -208,76 +318,160 @@ const table = useVueTable({
               <input
                 :value="form.sku"
                 readonly
-                class="w-full rounded-xl border-2 border-ink bg-gray-100 px-3 py-2 font-mono text-ink/70 focus:outline-none"
+                class="border-ink text-ink/70 w-full rounded-xl border-2 bg-gray-100 px-3 py-2 font-mono focus:outline-none"
                 title="SKU dibuat otomatis saat tambah barang"
               />
               <button
                 type="button"
                 :disabled="isEdit"
                 @click="regenerateSku"
-                class="neo-press shrink-0 rounded-xl border-2 border-ink bg-canvas p-2 text-ink shadow-hard-sm disabled:cursor-not-allowed disabled:opacity-40"
+                class="neo-press border-ink bg-canvas text-ink shadow-hard-sm shrink-0 rounded-xl border-2 p-2 disabled:cursor-not-allowed disabled:opacity-40"
                 :title="isEdit ? 'SKU tidak diubah saat edit' : 'Buat SKU baru'"
               >
                 <RefreshCw class="h-4 w-4" />
               </button>
             </div>
             <p class="mt-1 text-[10px] font-semibold text-gray-500">
-              {{ isEdit ? 'SKU tidak dapat diubah saat edit.' : 'Kode dihasilkan otomatis — tidak perlu diisi manual.' }}
+              {{
+                isEdit
+                  ? 'SKU tidak dapat diubah saat edit.'
+                  : 'Kode dihasilkan otomatis — tidak perlu diisi manual.'
+              }}
             </p>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="mb-1 block">Kategori Produk</label>
-              <select v-model="form.category" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 focus:outline-none">
+              <label class="text-ink mb-1 block text-xs font-bold">Kategori Produk</label>
+              <Select v-model="form.category" class="w-full">
                 <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
-              </select>
+              </Select>
             </div>
             <div>
-              <label class="mb-1 block">Satuan Unit</label>
-              <select v-model="form.unit" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 focus:outline-none">
+              <label class="text-ink mb-1 block text-xs font-bold">Satuan Unit</label>
+              <Select v-model="form.unit" class="w-full">
                 <option v-for="u in UNITS" :key="u" :value="u">{{ u }}</option>
-              </select>
+              </Select>
             </div>
           </div>
 
           <div>
             <label class="mb-1 block">Nama Barang / Sembako</label>
-            <input v-model="form.name" placeholder="Contoh: Minyak Goreng Kemasan 1L" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand" />
+            <input
+              v-model="form.name"
+              placeholder="Contoh: Minyak Goreng Kemasan 1L"
+              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 focus:ring-2 focus:outline-none"
+            />
           </div>
 
           <div class="grid grid-cols-3 gap-3">
             <div>
               <label class="mb-1 block">HPP (Modal)</label>
-              <input v-model.number="form.costPrice" type="number" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2" />
+              <input
+                v-model.number="form.costPrice"
+                type="number"
+                min="0"
+                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+              />
             </div>
             <div>
-              <label class="mb-1 block text-brand">Harga Jual</label>
-              <input v-model.number="form.sellingPrice" type="number" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2 font-extrabold" />
+              <label class="text-brand mb-1 block">Harga Jual (Utuh)</label>
+              <input
+                v-model.number="form.sellingPrice"
+                type="number"
+                min="0"
+                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2 font-extrabold"
+                title="Harga per satuan besar (contoh: per bungkus)"
+              />
             </div>
             <div>
               <label class="mb-1 block">Stok</label>
-              <input v-model.number="form.stock" type="number" step="0.01" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2" />
+              <input
+                v-model.number="form.stock"
+                type="number"
+                min="0"
+                step="0.01"
+                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+              />
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
+          <div class="border-ink bg-canvas rounded-xl border-2 p-3">
+            <p class="mb-2 text-[10px] font-extrabold tracking-wider text-gray-500 uppercase">
+              Jual Eceran (per batang) — opsional
+            </p>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block">Batang per Satuan Utuh</label>
+                <input
+                  v-model.number="form.piecesPerUnit"
+                  type="number"
+                  min="0"
+                  class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                  placeholder="cth: 12"
+                  title="Berapa batang dalam 1 satuan utuh (1 bungkus = 12 batang). Kosongkan bila tidak jual eceran."
+                />
+              </div>
+              <div>
+                <label class="mb-1 block">Harga per Batang</label>
+                <input
+                  v-model.number="form.smallPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="cth: 3000"
+                  class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                  title="Harga jual per batang (eceran)"
+                />
+              </div>
+            </div>
+            <p class="mt-1.5 text-[10px] font-semibold text-gray-500">
+              Kosongkan "Batang per Satuan Utuh" agar produk dijual utuh saja. Saat diisi, kasir
+              bisa jual per batang otomatis.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
             <div>
               <label class="mb-1 block">Stok Minimal</label>
-              <input v-model.number="form.minStock" type="number" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2" />
+              <input
+                v-model.number="form.minStock"
+                type="number"
+                min="0"
+                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+              />
+            </div>
+            <div>
+              <label class="mb-1 block">Satuan Kelipatan</label>
+              <input
+                v-model.number="form.step"
+                type="number"
+                min="0"
+                step="0.01"
+                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                title="Kelipatan qty tombol kiri kasir (cth: 0.5 untuk setengah kg, 2 untuk per 2 unit)"
+              />
             </div>
             <div>
               <label class="mb-1 block">Foto URL (opsional)</label>
-              <input v-model="form.image" placeholder="https://... atau unggah" class="w-full rounded-xl border-2 border-ink bg-canvas px-3 py-2" />
+              <input
+                v-model="form.image"
+                placeholder="https://... atau unggah"
+                class="border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+              />
             </div>
           </div>
 
-          <div class="flex items-center gap-3 rounded-xl border-2 border-ink bg-canvas p-3">
-            <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-ink bg-white">
+          <div class="border-ink bg-canvas flex items-center gap-3 rounded-xl border-2 p-3">
+            <div
+              class="border-ink flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 bg-white"
+            >
               <img v-if="form.image" :src="form.image" class="h-full w-full object-cover" />
-              <Package v-else class="h-6 w-6 text-ink/30" />
+              <Package v-else class="text-ink/30 h-6 w-6" />
             </div>
-            <label class="neo-press inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2 text-xs font-extrabold hover:bg-canvas">
+            <label
+              class="neo-press border-ink hover:bg-canvas inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-xs font-extrabold"
+            >
               {{ form.image ? 'Ganti Foto' : 'Unggah Foto...' }}
               <input type="file" accept="image/*" class="hidden" @change="onImageFile" />
             </label>
@@ -286,20 +480,31 @@ const table = useVueTable({
             </span>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 border-t-2 border-ink pt-3">
-            <Button type="button" variant="secondary" @click="closeModal">Batal</Button>
-            <Button type="submit" variant="primary">{{ isEdit ? 'Simpan Perubahan' : 'Tambah Barang' }}</Button>
+          <div class="border-ink grid grid-cols-2 gap-2 border-t-2 pt-3">
+            <Button type="button" variant="secondary" @click="closeModal" class="cursor-pointer"
+              >Batal</Button
+            >
+            <Button type="submit" variant="primary" class="cursor-pointer">{{
+              isEdit ? 'Simpan Perubahan' : 'Tambah Barang'
+            }}</Button>
           </div>
         </form>
       </div>
     </div>
 
     <!-- Delete confirm -->
-    <div v-if="deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div class="w-full max-w-sm rounded-2xl border-2 border-ink bg-surface p-5 text-center shadow-hard-xl">
+    <div
+      v-if="deleteTarget"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+    >
+      <div
+        class="border-ink bg-surface shadow-hard-xl w-full max-w-sm rounded-2xl border-2 p-5 text-center"
+      >
         <h3 class="mb-1 text-base font-extrabold">Hapus Barang Ini?</h3>
-        <p class="mb-4 text-xs text-gray-700 font-bold">
-          Apakah Anda yakin ingin menghapus <span class="text-card-coral underline">{{ deleteTarget.name }}</span>?
+        <p class="mb-4 text-xs font-bold text-gray-700">
+          Apakah Anda yakin ingin menghapus
+          <span class="text-card-coral underline">{{ deleteTarget.name }}</span
+          >?
         </p>
         <div class="grid grid-cols-2 gap-2.5">
           <Button variant="secondary" @click="deleteTarget = null">Batal</Button>
