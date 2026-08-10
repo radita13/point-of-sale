@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, h } from 'vue';
-import { Package, Pencil, Trash2, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { ref, h, computed, watch } from 'vue';
+import { Package, Pencil, Trash2, X, RefreshCw, ChevronLeft, ChevronRight, Search, FileUp, FileSpreadsheet } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
+import { toast } from 'vue-sonner';
 import { formatPrice } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Select from '@/components/ui/Select.vue';
+import Input from '@/components/ui/Input.vue';
+import Label from '@/components/ui/Label.vue';
 import { useInventory } from '@/composables/useInventory';
 
 import {
@@ -25,6 +28,7 @@ const {
   showModal,
   isEdit,
   form,
+  errors,
   deleteTarget,
   imageSizeKb,
   CATEGORIES,
@@ -37,7 +41,33 @@ const {
   saveProduct,
   askDelete,
   executeDelete,
+  importCsv,
+  downloadCsvTemplate,
 } = useInventory();
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const isImporting = ref(false);
+
+async function onCsvFileSelect(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  isImporting.value = true;
+  try {
+    const { success, failed } = await importCsv(file);
+    if (success > 0) {
+      toast.success(`Berhasil mengimport ${success} produk!${failed > 0 ? ` (${failed} diabaikan / duplikat)` : ''}`);
+    } else {
+      toast.error(`Gagal mengimport produk (${failed} tidak valid atau duplikat)`);
+    }
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Gagal memproses file CSV');
+  } finally {
+    isImporting.value = false;
+    input.value = '';
+  }
+}
 
 const columnHelper = createColumnHelper<Product>();
 const sorting = ref<SortingState>([]);
@@ -45,6 +75,18 @@ const globalFilter = ref('');
 const pagination = ref<PaginationState>({
   pageIndex: 0,
  pageSize: 10,
+});
+
+const selectedCategory = ref('Semua');
+const filteredData = computed(() => {
+  if (selectedCategory.value === 'Semua') {
+    return products.value;
+  }
+  return products.value.filter((p) => p.category === selectedCategory.value);
+});
+
+watch([selectedCategory, globalFilter], () => {
+  pagination.value.pageIndex = 0;
 });
 
 const columns = [
@@ -141,7 +183,7 @@ const columns = [
 ];
 
 const table = useVueTable({
-  data: products,
+  data: filteredData,
   columns,
   state: {
     get sorting() {
@@ -191,11 +233,67 @@ const table = useVueTable({
           </p>
         </div>
       </div>
-      <Button @click="openAdd" class="cursor-pointer">
-        <Package class="h-4 w-4" />
-        Tambah Barang Baru
-      </Button>
+      <div class="flex flex-wrap items-center gap-2">
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept=".csv"
+          class="hidden"
+          @change="onCsvFileSelect"
+        />
+        <Button
+          variant="secondary"
+          @click="downloadCsvTemplate"
+          class="cursor-pointer text-xs"
+          title="Unduh contoh file CSV untuk diisi"
+        >
+          <FileSpreadsheet class="h-4 w-4" />
+          Template CSV
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="isImporting"
+          @click="fileInputRef?.click()"
+          class="cursor-pointer text-xs"
+        >
+          <FileUp class="h-4 w-4" />
+          {{ isImporting ? 'Mengimport...' : 'Import CSV' }}
+        </Button>
+        <Button @click="openAdd" class="cursor-pointer text-xs">
+          <Package class="h-4 w-4" />
+          Tambah Barang Baru
+        </Button>
+      </div>
     </div>
+
+    <Card>
+      <div class="flex flex-col gap-3 p-4">
+        <div class="relative">
+          <Search class="text-ink/40 absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2" />
+          <input
+            v-model="globalFilter"
+            type="text"
+            placeholder="Cari nama barang atau SKU..."
+            class="border-ink bg-canvas text-ink focus:ring-brand h-11 w-full rounded-xl border-2 pr-4 pl-11 text-sm font-bold focus:ring-2 focus:outline-none"
+          />
+        </div>
+        <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
+          <button
+            v-for="cat in ['Semua', ...CATEGORIES]"
+            :key="cat"
+            @click="selectedCategory = cat"
+            :class="
+              selectedCategory === cat
+                ? 'bg-ink text-white'
+                : 'bg-canvas text-ink hover:bg-gray-200'
+            "
+            class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
+          >
+            {{ cat }}
+          </button>
+        </div>
+      </div>
+    </Card>
 
     <Card class="overflow-hidden">
       <div class="neo-scroll overflow-x-auto">
@@ -313,12 +411,12 @@ const table = useVueTable({
 
         <form @submit.prevent="saveProduct" class="space-y-3 text-xs font-bold">
           <div>
-            <label class="mb-1 block">SKU (otomatis)</label>
+            <Label>SKU (otomatis)</Label>
             <div class="flex items-center gap-2">
-              <input
-                :value="form.sku"
-                readonly
-                class="border-ink text-ink/70 w-full rounded-xl border-2 bg-gray-100 px-3 py-2 font-mono focus:outline-none"
+              <Input
+                :model-value="form.sku"
+                disabled
+                class="bg-gray-100 font-mono text-ink/70"
                 title="SKU dibuat otomatis saat tambah barang"
               />
               <button
@@ -342,13 +440,13 @@ const table = useVueTable({
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-ink mb-1 block text-xs font-bold">Kategori Produk</label>
+              <Label required>Kategori Produk</Label>
               <Select v-model="form.category" class="w-full">
                 <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
               </Select>
             </div>
             <div>
-              <label class="text-ink mb-1 block text-xs font-bold">Satuan Unit</label>
+              <Label required>Satuan Unit</Label>
               <Select v-model="form.unit" class="w-full">
                 <option v-for="u in UNITS" :key="u" :value="u">{{ u }}</option>
               </Select>
@@ -356,43 +454,60 @@ const table = useVueTable({
           </div>
 
           <div>
-            <label class="mb-1 block">Nama Barang / Sembako</label>
-            <input
+            <Label required>Nama Barang / Sembako</Label>
+            <Input
               v-model="form.name"
               placeholder="Contoh: Minyak Goreng Kemasan 1L"
-              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 focus:ring-2 focus:outline-none"
+              :class="errors.name ? 'border-card-coral focus:ring-card-coral' : ''"
+              @input="errors.name = ''"
             />
+            <p v-if="errors.name" class="mt-1 text-[11px] font-bold text-card-coral">
+              {{ errors.name }}
+            </p>
           </div>
 
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="mb-1 block">HPP (Modal)</label>
-              <input
+              <Label required>HPP (Modal)</Label>
+              <Input
                 v-model.number="form.costPrice"
                 type="number"
                 min="0"
-                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                :class="errors.costPrice ? 'border-card-coral focus:ring-card-coral' : ''"
+                @input="errors.costPrice = ''"
               />
+              <p v-if="errors.costPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+                {{ errors.costPrice }}
+              </p>
             </div>
             <div>
-              <label class="text-brand mb-1 block">Harga Jual (Utuh)</label>
-              <input
+              <Label required class="text-brand">Harga Jual (Utuh)</Label>
+              <Input
                 v-model.number="form.sellingPrice"
                 type="number"
                 min="0"
-                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2 font-extrabold"
+                class="font-extrabold"
+                :class="errors.sellingPrice ? 'border-card-coral focus:ring-card-coral' : ''"
                 title="Harga per satuan besar (contoh: per bungkus)"
+                @input="errors.sellingPrice = ''"
               />
+              <p v-if="errors.sellingPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+                {{ errors.sellingPrice }}
+              </p>
             </div>
             <div>
-              <label class="mb-1 block">Stok</label>
-              <input
+              <Label required>Stok</Label>
+              <Input
                 v-model.number="form.stock"
                 type="number"
                 min="0"
                 step="0.01"
-                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                :class="errors.stock ? 'border-card-coral focus:ring-card-coral' : ''"
+                @input="errors.stock = ''"
               />
+              <p v-if="errors.stock" class="mt-1 text-[11px] font-bold text-card-coral">
+                {{ errors.stock }}
+              </p>
             </div>
           </div>
 
@@ -402,27 +517,35 @@ const table = useVueTable({
             </p>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="mb-1 block">Batang per Satuan Utuh</label>
-                <input
+                <Label>Batang per Satuan Utuh</Label>
+                <Input
                   v-model.number="form.piecesPerUnit"
                   type="number"
                   min="0"
-                  class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
                   placeholder="cth: 12"
+                  :class="errors.piecesPerUnit ? 'border-card-coral focus:ring-card-coral' : ''"
                   title="Berapa batang dalam 1 satuan utuh (1 bungkus = 12 batang). Kosongkan bila tidak jual eceran."
+                  @input="errors.piecesPerUnit = ''"
                 />
+                <p v-if="errors.piecesPerUnit" class="mt-1 text-[11px] font-bold text-card-coral">
+                  {{ errors.piecesPerUnit }}
+                </p>
               </div>
               <div>
-                <label class="mb-1 block">Harga per Batang</label>
-                <input
+                <Label>Harga per Batang</Label>
+                <Input
                   v-model.number="form.smallPrice"
                   type="number"
                   min="0"
                   step="0.01"
                   placeholder="cth: 3000"
-                  class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                  :class="errors.smallPrice ? 'border-card-coral focus:ring-card-coral' : ''"
                   title="Harga jual per batang (eceran)"
+                  @input="errors.smallPrice = ''"
                 />
+                <p v-if="errors.smallPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+                  {{ errors.smallPrice }}
+                </p>
               </div>
             </div>
             <p class="mt-1.5 text-[10px] font-semibold text-gray-500">
@@ -433,31 +556,33 @@ const table = useVueTable({
 
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="mb-1 block">Stok Minimal</label>
-              <input
+              <Label required>Stok Minimal</Label>
+              <Input
                 v-model.number="form.minStock"
                 type="number"
                 min="0"
-                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
+                :class="errors.minStock ? 'border-card-coral focus:ring-card-coral' : ''"
+                @input="errors.minStock = ''"
               />
+              <p v-if="errors.minStock" class="mt-1 text-[11px] font-bold text-card-coral">
+                {{ errors.minStock }}
+              </p>
             </div>
             <div>
-              <label class="mb-1 block">Satuan Kelipatan</label>
-              <input
+              <Label>Satuan Kelipatan</Label>
+              <Input
                 v-model.number="form.step"
                 type="number"
                 min="0"
                 step="0.01"
-                class="no-spin border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
                 title="Kelipatan qty tombol kiri kasir (cth: 0.5 untuk setengah kg, 2 untuk per 2 unit)"
               />
             </div>
             <div>
-              <label class="mb-1 block">Foto URL (opsional)</label>
-              <input
+              <Label>Foto URL (opsional)</Label>
+              <Input
                 v-model="form.image"
                 placeholder="https://... atau unggah"
-                class="border-ink bg-canvas w-full rounded-xl border-2 px-3 py-2"
               />
             </div>
           </div>

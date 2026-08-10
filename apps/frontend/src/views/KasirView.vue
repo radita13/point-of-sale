@@ -35,17 +35,27 @@ const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const showMobileCart = ref(false);
 
-const categories = ['Semua', 'Beras & Minyak', 'Bumbu Dapur', 'Minuman', 'Rokok & Snack'];
+const categories = [
+  'Semua',
+  'Beras & Minyak',
+  'Bumbu Dapur',
+  'Minuman',
+  'Makanan & Snack',
+  'Rokok',
+  'Kebutuhan Harian',
+];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'Beras & Minyak': 'bg-card-yellow',
-  'Bumbu Dapur': 'bg-card-green',
-  Minuman: 'bg-card-coral',
-  'Rokok & Snack': 'bg-card-blue',
+  'Beras & Minyak': 'bg-card-yellow text-ink',
+  'Bumbu Dapur': 'bg-card-green text-white',
+  Minuman: 'bg-card-coral text-white',
+  'Makanan & Snack': 'bg-card-purple text-white',
+  Rokok: 'bg-card-blue text-white',
+  'Kebutuhan Harian': 'bg-card-teal text-white',
 };
 
 function cardColor(p: Product): string {
-  return CATEGORY_COLORS[p.category] ?? 'bg-card-purple';
+  return CATEGORY_COLORS[p.category] ?? 'bg-card-teal text-white';
 }
 
 async function loadProducts() {
