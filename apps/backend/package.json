@@ -14,9 +14,6 @@
     "prisma:migrate": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@point-of-sale/shared": "workspace:*",
     "@prisma/client": "^6.16.0",

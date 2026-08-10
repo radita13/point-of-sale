@@ -3,7 +3,7 @@ import { toast } from 'vue-sonner';
 import type { Product } from '@point-of-sale/shared';
 import { productSyncSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { makeUuid, seedProductsIfEmpty } from '@/db/seed';
+import { makeUuid } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
 
 const CATEGORIES = [
@@ -69,10 +69,6 @@ export function useInventory() {
       await useSyncStore().restoreProductsFromServer();
     }
     await refresh();
-    if (products.value.length === 0) {
-      await seedProductsIfEmpty();
-      await refresh();
-    }
   }
 
   onMounted(refreshWithRestore);

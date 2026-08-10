@@ -5,7 +5,7 @@ import { ClipboardCheck, Save, Search, ChevronLeft, ChevronRight } from 'lucide-
 import type { InventoryAdjustment, Product } from '@point-of-sale/shared';
 import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { makeUuid } from '@/db/seed';
+import { makeUuid } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';

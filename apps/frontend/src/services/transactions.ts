@@ -1,7 +1,6 @@
 import type { PaymentMethod, Transaction, TransactionItem } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { makeUuid } from '@/db/seed';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, makeUuid } from '@/lib/utils';
 
 /** Ambil nomor invoice berikutnya: INV-YYYYMMDD-NNNN (pakai max+1, bukan
  * count+1, agar nomor bekas gap tidak dipakai ulang). Catatan: kalau DB lokal

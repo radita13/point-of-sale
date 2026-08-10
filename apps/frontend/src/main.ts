@@ -5,7 +5,6 @@ import { Toaster } from 'vue-sonner';
 import App from './App.vue';
 import router from './router';
 import { queryClient } from './lib/queryClient';
-import { seedProductsIfEmpty } from './db/seed';
 import { db } from './db/database';
 import { useAuthStore } from './stores';
 import { useSyncStore } from './stores/sync';
@@ -25,13 +24,8 @@ async function bootstrap() {
     sessionStorage.removeItem('pos_local_cleared');
   } else {
     const productCount = await db.products.count();
-    if (productCount === 0) {
-      if (navigator.onLine) {
-        const restored = await useSyncStore().restoreProductsFromServer();
-        if (restored === 0) await seedProductsIfEmpty();
-      } else {
-        await seedProductsIfEmpty();
-      }
+    if (productCount === 0 && navigator.onLine) {
+      await useSyncStore().restoreProductsFromServer();
     }
   }
 
