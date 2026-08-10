@@ -102,8 +102,31 @@ export async function syncProducts(req: any, res: any): Promise<void> {
   const synced: Array<{ id: string; image: string | null }> = [];
 
   for (const p of products) {
+    if (p.isDeleted) {
+      const existingProduct = await prisma.product.findUnique({
+        where: { serverId: p.id },
+        include: {
+          transactionItems: { take: 1 },
+          adjustments: { take: 1 },
+        },
+      });
+
+      if (existingProduct) {
+        const hasTransactions = existingProduct.transactionItems.length > 0;
+        const hasAdjustments = existingProduct.adjustments.length > 0;
+
+        if (!hasTransactions && !hasAdjustments) {
+          await prisma.product.delete({ where: { id: existingProduct.id } });
+          synced.push({ id: p.id, image: null });
+          continue;
+        }
+      }
+    }
+
     let image = p.image ?? null;
-    if (image && image.startsWith('data:')) {
+    if (p.isDeleted) {
+      image = null;
+    } else if (image && image.startsWith('data:')) {
       try {
         image = await uploadProductImage(image, p.id);
       } catch (err) {
@@ -111,6 +134,7 @@ export async function syncProducts(req: any, res: any): Promise<void> {
         image = null;
       }
     }
+
     const sku = p.sku?.trim() ? p.sku : `SKU-${p.id.slice(0, 8).toUpperCase()}`;
     const data = {
       sku,
