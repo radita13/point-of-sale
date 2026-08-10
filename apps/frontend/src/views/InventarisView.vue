@@ -337,27 +337,28 @@ const table = useVueTable({
       <!-- Pagination controls -->
       <div
         v-if="table.getFilteredRowModel().rows.length > 0"
-        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-3 border-t-2 p-3 text-xs font-extrabold"
+        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-2 border-t-2 p-3 text-xs font-extrabold"
       >
-        <div class="text-gray-600">
-          Menampilkan {{ table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 }}
-          -
-          {{
+        <div class="text-gray-600 whitespace-nowrap">
+          <span class="hidden sm:inline">Menampilkan </span>
+          <span>{{ table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 }}-{{
             Math.min(
               (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
               table.getFilteredRowModel().rows.length
             )
-          }}
-          dari {{ table.getFilteredRowModel().rows.length }} barang
+          }}</span>
+          <span class="text-gray-400 font-normal"> / </span>
+          <span>{{ table.getFilteredRowModel().rows.length }}</span>
+          <span class="hidden sm:inline"> barang</span>
         </div>
 
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1">
-            <span>Baris per halaman:</span>
             <select
               :value="table.getState().pagination.pageSize"
               @change="(e: Event) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
-              class="border-ink bg-white rounded-lg border-2 px-2 py-1 text-xs font-extrabold focus:outline-none"
+              class="border-ink bg-white rounded-lg border-2 px-1.5 py-1 text-xs font-extrabold focus:outline-none"
+              title="Baris per halaman"
             >
               <option :value="10">10</option>
               <option :value="20">20</option>
@@ -375,8 +376,8 @@ const table = useVueTable({
             >
               <ChevronLeft class="h-4 w-4" />
             </Button>
-            <span class="px-2">
-              {{ table.getState().pagination.pageIndex + 1 }} / {{ table.getPageCount() }}
+            <span class="px-1 text-[11px] whitespace-nowrap">
+              {{ table.getState().pagination.pageIndex + 1 }}/{{ table.getPageCount() }}
             </span>
             <Button
               variant="secondary"

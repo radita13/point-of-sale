@@ -248,23 +248,23 @@ void sync;
       <!-- Pagination Controls -->
       <div
         v-if="filteredProducts.length > 0"
-        class="flex flex-wrap items-center justify-between gap-3 border-t-2 border-ink pt-3 text-xs font-extrabold"
+        class="flex flex-wrap items-center justify-between gap-2 border-t-2 border-ink pt-3 text-xs font-extrabold"
       >
-        <div class="text-gray-600">
-          Menampilkan
-          {{ (currentPage - 1) * pageSize + 1 }}
-          -
-          {{ Math.min(currentPage * pageSize, filteredProducts.length) }}
-          dari {{ filteredProducts.length }} barang
+        <div class="text-gray-600 whitespace-nowrap">
+          <span class="hidden sm:inline">Menampilkan </span>
+          <span>{{ (currentPage - 1) * pageSize + 1 }}-{{ Math.min(currentPage * pageSize, filteredProducts.length) }}</span>
+          <span class="text-gray-400 font-normal"> / </span>
+          <span>{{ filteredProducts.length }}</span>
+          <span class="hidden sm:inline"> barang</span>
         </div>
 
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1">
-            <span>Tampilkan:</span>
             <select
               :value="pageSize"
               @change="(e: Event) => (pageSize = Number((e.target as HTMLSelectElement).value))"
-              class="border-ink bg-white rounded-lg border-2 px-2 py-1 text-xs font-extrabold focus:outline-none"
+              class="border-ink bg-white rounded-lg border-2 px-1.5 py-1 text-xs font-extrabold focus:outline-none"
+              title="Jumlah item per halaman"
             >
               <option :value="12">12</option>
               <option :value="24">24</option>
@@ -282,7 +282,7 @@ void sync;
             >
               <ChevronLeft class="h-4 w-4" />
             </Button>
-            <span class="px-2"> {{ currentPage }} / {{ totalPages }} </span>
+            <span class="px-1 text-[11px] whitespace-nowrap"> {{ currentPage }}/{{ totalPages }} </span>
             <Button
               variant="secondary"
               size="icon"

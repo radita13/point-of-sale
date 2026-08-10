@@ -5,13 +5,21 @@ import { LogOut, RefreshCw, Settings, Store, X, Save } from 'lucide-vue-next';
 import { useAuthStore, useNetworkStore } from '@/stores';
 import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
+import { useCartStore } from '@/stores/cart';
+import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 const network = useNetworkStore();
 const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
+const cart = useCartStore();
+
+const hasActiveCart = computed(() => {
+  return route.name === 'kasir' && cart.items.length > 0;
+});
 
 const open = ref(false);
 const showProfileModal = ref(false);
@@ -19,18 +27,38 @@ const showProfileModal = ref(false);
 const profileForm = ref({ ...storeSettings.settings });
 
 function openProfileModal() {
-  profileForm.value = { ...storeSettings.settings };
+  profileForm.value = {
+    ...storeSettings.settings,
+    ownerName: storeSettings.settings.ownerName || auth.userMetadata?.fullName || '',
+    phone: storeSettings.settings.phone || auth.userMetadata?.phone || '',
+  };
   showProfileModal.value = true;
   open.value = false;
 }
 
-function saveProfile() {
+async function saveProfile() {
   if (!profileForm.value.storeName.trim()) {
     toast.error('Nama Toko tidak boleh kosong');
     return;
   }
+
   storeSettings.updateSettings(profileForm.value);
-  toast.success('Profil Toko berhasil diperbarui!');
+
+  if (auth.isAuthenticated) {
+    try {
+      await auth.updateProfile({
+        fullName: profileForm.value.ownerName.trim(),
+        phone: profileForm.value.phone.trim(),
+      });
+      toast.success('Profil Toko & Akun Supabase berhasil diperbarui!');
+    } catch (err) {
+      console.warn('Gagal sync ke Supabase Auth:', err);
+      toast.success('Profil Toko disimpan (lokal).');
+    }
+  } else {
+    toast.success('Profil Toko berhasil diperbarui!');
+  }
+
   showProfileModal.value = false;
 }
 
@@ -61,7 +89,10 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="fixed right-4 bottom-20 z-50 lg:right-6 lg:bottom-6">
+  <div
+    class="fixed right-4 z-50 transition-all duration-200 lg:right-6 lg:bottom-6"
+    :class="hasActiveCart ? 'bottom-37.5 lg:bottom-6' : 'bottom-20 lg:bottom-6'"
+  >
     <div v-if="open" class="fixed inset-0" @click="open = false" />
 
     <Transition name="menu-pop">

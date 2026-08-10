@@ -4,15 +4,24 @@ import { useRoute, useRouter } from 'vue-router';
 import { Store, Package, ClipboardCheck, BarChart3, Sparkles } from 'lucide-vue-next';
 import Badge from '@/components/ui/Badge.vue';
 import SettingsMenu from '@/components/layout/SettingsMenu.vue';
-import { useNetworkStore } from '@/stores';
+import { useNetworkStore, useAuthStore } from '@/stores';
 import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
 
 const route = useRoute();
 const router = useRouter();
 const network = useNetworkStore();
+const auth = useAuthStore();
 const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
+
+const displayOwnerName = computed(() => {
+  const customName = storeSettings.settings.ownerName?.trim();
+  if (customName) return customName.toUpperCase();
+  const supabaseName = auth.userMetadata?.fullName?.trim();
+  if (supabaseName) return supabaseName.toUpperCase();
+  return '-';
+});
 let syncTimer: number | undefined;
 
 function handleOnline() {
@@ -86,8 +95,8 @@ function go(key: string) {
               {{ storeSettings.settings.storeName }}
             </h1>
             <p class="text-ink/50 text-[11px] font-bold">
-              <span class="text-ink/70 font-extrabold">Owner: </span
-              >{{ storeSettings.settings.ownerName.toUpperCase() }}
+              <span class="text-ink/70 font-extrabold">Owner: </span>
+              {{ displayOwnerName }}
             </p>
           </div>
         </div>

@@ -13,9 +13,9 @@ export interface StoreSettings {
 
 const DEFAULT_SETTINGS: StoreSettings = {
   storeName: "Toko Sumber Rejeki",
-  ownerName: "Budi",
+  ownerName: "",
   address: "Jl. Sembako Raya No. 88, Manado",
-  phone: "0812-3456-7890",
+  phone: "",
   receiptFooter:
     "*** TERIMA KASIH ***\nBarang yang sudah dibeli tidak dapat ditukar.",
 };

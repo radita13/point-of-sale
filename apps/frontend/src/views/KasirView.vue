@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { toast } from 'vue-sonner';
 import {
   Search,
@@ -24,16 +24,46 @@ import { useStoreSettingsStore } from '@/stores/storeSettings';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import { useAuthStore } from '@/stores';
 
 const cart = useCartStore();
 const printer = useBluetoothPrinter();
 const sync = useSyncStore();
+const auth = useAuthStore();
 const storeSettings = useStoreSettingsStore();
+
+const displayPhone = computed(() => {
+  return storeSettings.settings.phone?.trim() || auth.userMetadata?.phone?.trim() || '';
+});
 
 const products = ref<Product[]>([]);
 const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const showMobileCart = ref(false);
+
+watch(showMobileCart, (isOpen) => {
+  if (isOpen) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+});
+
+function handleResize() {
+  if (window.innerWidth >= 1024) {
+    showMobileCart.value = false;
+    document.body.style.overflow = '';
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  document.body.style.overflow = '';
+});
 
 const categories = [
   'Semua',
@@ -222,7 +252,7 @@ function printNow() {
     .printReceipt({
       storeName: storeSettings.settings.storeName,
       address: storeSettings.settings.address,
-      phone: storeSettings.settings.phone,
+      phone: displayPhone.value,
       invoiceNo: lastReceipt.value.invoiceNo,
       date: lastReceipt.value.date,
       cashier: 'Kasir',
@@ -390,11 +420,11 @@ async function connectPrinter() {
           <ShoppingCart class="text-ink/20 mx-auto mb-2 h-10 w-10" />
           <p class="text-ink text-sm font-bold">Keranjang masih kosong</p>
           <p class="text-ink/50 mt-0.5 text-xs">
-            Pilih produk sembako dari katalog di sebelah kiri.
+            Pilih produk sembako dari katalog produk.
           </p>
         </div>
 
-        <div v-else class="neo-scroll max-h-75 space-y-2.5 overflow-y-auto pr-1 pb-2">
+        <div v-else class="neo-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1 pb-2">
           <div
             v-for="it in cart.items"
             :key="it.product.id"
@@ -613,7 +643,18 @@ async function connectPrinter() {
               </button>
             </div>
           </div>
-          <div class="neo-scroll max-h-55 space-y-2 overflow-y-auto pr-1 pb-2">
+          <div
+            v-if="cart.items.length === 0"
+            class="flex flex-1 flex-col items-center justify-center py-8 text-center text-gray-500"
+          >
+            <ShoppingCart class="text-ink/20 mx-auto mb-2 h-10 w-10" />
+            <p class="text-ink text-sm font-bold">Keranjang masih kosong</p>
+            <p class="text-ink/50 mt-0.5 text-xs">
+              Pilih produk sembako dari katalog produk.
+            </p>
+          </div>
+
+          <div v-else class="neo-scroll max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2">
             <div
               v-for="it in cart.items"
               :key="it.product.id"
@@ -799,8 +840,8 @@ async function connectPrinter() {
           <p class="text-[10px] text-gray-600">
             {{ storeSettings.settings.address }}
           </p>
-          <p class="text-[10px] text-gray-600">
-            {{ storeSettings.settings.phone }}
+          <p v-if="displayPhone" class="text-[10px] text-gray-600">
+            {{ displayPhone }}
           </p>
         </div>
 
