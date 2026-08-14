@@ -43,13 +43,5 @@ coverage/
 *.tmp
 temp/
 
-# MD.Area
+# Project Requitment Development
 Plan/
-DESIGN.md
-Code_Design.md
-AUDIT.md
-AGENTS.md
-PRD_POS_v2.md
-ROADMAP.md
-Task.md
-strix.md
