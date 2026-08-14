@@ -25,21 +25,16 @@ async function nextInvoiceNoForStore(
 }
 
 export async function syncTransactions(req: any, res: any): Promise<void> {
-  const { storeId, transactions } = req.body ?? ({} as any);
+  const { storeId, transactions } = req.validated ?? req.body ?? {};
   if (!storeId || !Array.isArray(transactions) || transactions.length === 0) {
     res.status(400).json({ error: 'storeId dan transactions wajib diisi' });
     return;
   }
-  const parsed = syncPayloadSchema.safeParse({ storeId, transactions });
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Validasi gagal', issues: parsed.error.issues });
-    return;
-  }
-  if (!(await requireStoreAccess(req, res, parsed.data.storeId))) return;
+  if (!(await requireStoreAccess(req, res, storeId))) return;
 
   try {
     const feProductIds = Array.from(
-      new Set(parsed.data.transactions.flatMap((t: any) => t.items.map((it: any) => it.productId))),
+      new Set(transactions.flatMap((t: any) => t.items.map((it: any) => it.productId))),
     );
 
     const foundProducts = await prisma.product.findMany({
@@ -58,14 +53,14 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
     const skipped: string[] = [];
     const invoiceNoMap: Record<string, string> = {};
 
-    for (const t of parsed.data.transactions) {
+    for (const t of transactions) {
       const existing = await prisma.transaction.findUnique({ where: { id: t.id } });
       if (existing) {
         updated.push(t.id);
         continue;
       }
 
-      const invalidItem = t.items.find((it) => !productIdMap.has(it.productId));
+      const invalidItem = t.items.find((it: any) => !productIdMap.has(it.productId));
       if (invalidItem) {
         console.warn(
           `[transactions/sync] skip ${t.id} (${t.invoiceNo}): produk '${invalidItem.productName}' (${invalidItem.productId}) tidak ditemukan di server.`,
@@ -88,9 +83,9 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
               paymentMethod: t.paymentMethod,
               payAmount: t.payAmount,
               changeAmount: t.changeAmount,
-              storeId: parsed.data.storeId,
+              storeId,
               items: {
-                create: t.items.map((it) => ({
+                create: t.items.map((it: any) => ({
                   productId: productIdMap.get(it.productId)!,
                   productName: it.productName,
                   sku: it.sku,
@@ -106,7 +101,7 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
           created = true;
           } catch (err: any) {
             if (err?.code === 'P2002') {
-            invoiceNo = await nextInvoiceNoForStore(prisma, parsed.data.storeId, invoiceNo);
+            invoiceNo = await nextInvoiceNoForStore(prisma, storeId, invoiceNo);
             if (invoiceNo !== t.invoiceNo) invoiceNoMap[t.id] = invoiceNo;
             continue;
           }

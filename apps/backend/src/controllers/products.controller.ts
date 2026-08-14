@@ -92,12 +92,11 @@ export async function getProducts(req: any, res: any): Promise<void> {
 }
 
 export async function syncProducts(req: any, res: any): Promise<void> {
-  const parsed = productSyncPayloadSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Validasi gagal', issues: parsed.error.issues });
+  const { storeId, products } = req.validated ?? req.body ?? {};
+  if (!storeId || !products) {
+    res.status(400).json({ error: 'Payload tidak valid' });
     return;
   }
-  const { storeId, products } = parsed.data;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   const synced: Array<{ id: string; image: string | null }> = [];
 

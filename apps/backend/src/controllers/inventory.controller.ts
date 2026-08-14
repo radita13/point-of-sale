@@ -51,12 +51,11 @@ export async function getLowStock(req: any, res: any): Promise<void> {
 }
 
 export async function adjustInventory(req: any, res: any): Promise<void> {
-  const parsed = adjustmentsPayloadSchema.safeParse(req.body ?? {});
-  if (!parsed.success) {
-    res.status(400).json({ error: 'Validasi gagal', issues: parsed.error.issues });
+  const { storeId, adjustments } = req.validated ?? req.body ?? {};
+  if (!storeId || !adjustments) {
+    res.status(400).json({ error: 'Payload tidak valid' });
     return;
   }
-  const { storeId, adjustments } = parsed.data;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   try {
     const results = await prisma.$transaction(async (tx: any) => {

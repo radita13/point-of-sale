@@ -15,15 +15,21 @@ const app = express();
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS ??
-  "http://localhost:5173,http://127.0.0.1:5173,https://point-of-sale-fe.vercel.app/"
+  "http://localhost:5173,http://127.0.0.1:5173,https://point-of-sale-fe.vercel.app"
 )
   .split(",")
-  .map((s) => s.trim())
+  .map((s) => s.trim().replace(/\/$/, ""))
   .filter(Boolean);
 
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );
