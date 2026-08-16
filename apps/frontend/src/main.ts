@@ -30,6 +30,7 @@ async function bootstrap() {
   }
 
   await useSyncStore().ensurePendingStockDirty();
+  await useSyncStore().cleanupOldTransactions();
 
   app.use(router);
   window.addEventListener(

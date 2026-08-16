@@ -213,6 +213,69 @@ export const useSyncStore = defineStore('sync', () => {
     } catch {}
   }
 
+  async function cleanupOldTransactions(): Promise<number> {
+    try {
+      const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
+      const cutoffTime = Date.now() - SIX_MONTHS_MS;
+
+      const oldTransactions = await db.transactions
+        .filter((t) => Boolean(t.isSynced) && t.timestamp < cutoffTime)
+        .toArray();
+
+      if (oldTransactions.length === 0) return 0;
+
+      const oldIds = oldTransactions.map((t) => t.id);
+      await db.transactions.bulkDelete(oldIds);
+      console.info(
+        `[Housekeeping] ${oldIds.length} transaksi lokal > 6 bulan telah dibersihkan dari IndexedDB.`
+      );
+      return oldIds.length;
+    } catch (err) {
+      console.warn('[Housekeeping] Gagal membersihkan transaksi lama:', err);
+      return 0;
+    }
+  }
+
+  async function retrySingleTransaction(txId: string): Promise<boolean> {
+    if (!navigator.onLine) {
+      toast.error('Perangkat sedang offline.');
+      return false;
+    }
+    const tx = await db.transactions.get(txId);
+    if (!tx) return false;
+
+    isSyncingInternal.value = true;
+    try {
+      const result = await api.syncTransactions({ storeId: getStoreId(), transactions: [tx] });
+      if (result.synced.includes(tx.id)) {
+        await db.transactions.update(tx.id, {
+          isSynced: true,
+          syncError: undefined,
+          ...(result.invoiceNoMap?.[tx.id] ? { invoiceNo: result.invoiceNoMap[tx.id] } : {}),
+        });
+        toast.success(`Transaksi ${tx.invoiceNo} berhasil tersinkron.`);
+        await refreshCount();
+        return true;
+      } else if (result.skipped?.includes(tx.id)) {
+        await db.transactions.update(tx.id, {
+          isSynced: true,
+          syncError: 'Dilewati: Produk dalam transaksi tidak ditemukan di server.',
+        });
+        toast.warning(`Transaksi ${tx.invoiceNo} dilewati oleh server.`);
+        await refreshCount();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal retry sync';
+      await db.transactions.update(tx.id, { syncError: msg });
+      toast.error(`Gagal sync ${tx.invoiceNo}: ${msg}`);
+      return false;
+    } finally {
+      isSyncingInternal.value = false;
+    }
+  }
+
   return {
     pendingCount,
     pendingProducts,
@@ -227,5 +290,7 @@ export const useSyncStore = defineStore('sync', () => {
     restoreTransactionsFromServer,
     restoreProductsFromServer,
     ensurePendingStockDirty,
+    cleanupOldTransactions,
+    retrySingleTransaction,
   };
 });

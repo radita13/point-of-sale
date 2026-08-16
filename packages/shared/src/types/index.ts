@@ -56,6 +56,7 @@ export interface Transaction {
   payAmount: number;
   changeAmount: number;
   isSynced: boolean;
+  syncError?: string;
 }
 
 export interface SyncPayload {
