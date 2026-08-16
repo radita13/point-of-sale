@@ -5,7 +5,6 @@ import type { Product } from '@point-of-sale/shared';
 export interface CartItem {
   product: Product;
   qty: number;
-  /** true = kasir input dalam satuan kecil (bat); false = satuan besar (pak). Default false. */
   pieceMode?: boolean;
 }
 
@@ -43,7 +42,10 @@ export function splitPieces(p: Product, qty: number): { packs: number; pieces: n
 }
 
 /** Format qty untuk tampilan di keranjang: pieceMode → tampilkan "X pak + Y bat". */
-export function fmtQty(it: { product: Product; qty: number; pieceMode?: boolean }, _unused?: boolean): string {
+export function fmtQty(
+  it: { product: Product; qty: number; pieceMode?: boolean },
+  _unused?: boolean
+): string {
   const p = it.product;
   const isPiecesLocal = !!p.piecesPerUnit && p.piecesPerUnit > 1;
   if (isPiecesLocal) {
@@ -60,11 +62,9 @@ export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([]);
 
   const subtotal = computed(() =>
-    round2(items.value.reduce((sum, it) => sum + lineSubtotal(it.product, it.qty), 0)),
+    round2(items.value.reduce((sum, it) => sum + lineSubtotal(it.product, it.qty), 0))
   );
-  const totalItems = computed(() =>
-    round6(items.value.reduce((sum, it) => sum + it.qty, 0)),
-  );
+  const totalItems = computed(() => round6(items.value.reduce((sum, it) => sum + it.qty, 0)));
 
   function addToCart(product: Product, qty = 1, pieceMode = false) {
     const existing = items.value.find((it) => it.product.id === product.id);
@@ -82,8 +82,10 @@ export const useCartStore = defineStore('cart', () => {
     if (!it) return;
     const mode = overridePieceMode !== undefined ? overridePieceMode : (it.pieceMode ?? false);
     if (overridePieceMode !== undefined) it.pieceMode = overridePieceMode;
-    const ppu = mode && it.product.piecesPerUnit && it.product.piecesPerUnit > 1
-      ? it.product.piecesPerUnit : 1;
+    const ppu =
+      mode && it.product.piecesPerUnit && it.product.piecesPerUnit > 1
+        ? it.product.piecesPerUnit
+        : 1;
     const qty = mode ? round6(displayQty / ppu) : round6(displayQty);
     const clamped = clampQty(qty, it.product.stock);
     if (clamped <= 0) {

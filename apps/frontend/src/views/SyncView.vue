@@ -13,7 +13,7 @@ import {
 } from 'lucide-vue-next';
 import type { Product, Transaction } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, formatDate } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import { useNetworkStore } from '@/stores';
@@ -334,7 +334,7 @@ async function handleRetrySingle(tx: Transaction) {
                 </p>
                 <p class="text-[10px] text-gray-500">
                   Total: Rp {{ formatPrice(t.finalAmount) }} •
-                  {{ new Date(t.timestamp).toLocaleString('id-ID') }}
+                  {{ formatDate(t.timestamp) }}
                 </p>
               </div>
 
@@ -487,7 +487,7 @@ async function handleRetrySingle(tx: Transaction) {
                 </div>
                 <div class="flex justify-between">
                   <span>Waktu Transaksi:</span
-                  ><span>{{ new Date(selectedErrorTx.timestamp).toLocaleString('id-ID') }}</span>
+                  ><span>{{ formatDate(selectedErrorTx.timestamp) }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span>Total Pembayaran:</span
