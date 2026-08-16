@@ -1,6 +1,19 @@
 <script setup lang="ts">
-import { ref, h, computed, watch } from 'vue';
-import { Package, Pencil, Trash2, X, RefreshCw, ChevronLeft, ChevronRight, Search, FileUp, FileSpreadsheet } from 'lucide-vue-next';
+import { ref, h, computed, watch, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import {
+  Package,
+  Pencil,
+  Trash2,
+  X,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  FileUp,
+  FileSpreadsheet,
+  Camera,
+} from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import { toast } from 'vue-sonner';
 import { formatPrice } from '@/lib/utils';
@@ -10,6 +23,7 @@ import Select from '@/components/ui/Select.vue';
 import Input from '@/components/ui/Input.vue';
 import Label from '@/components/ui/Label.vue';
 import { useInventory } from '@/composables/useInventory';
+import BarcodeScannerModal from '@/components/kasir/BarcodeScannerModal.vue';
 
 import {
   useVueTable,
@@ -47,6 +61,23 @@ const {
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const isImporting = ref(false);
+const showFormScanner = ref(false);
+const route = useRoute();
+
+onMounted(() => {
+  const addSku = route.query.addSku as string | undefined;
+  if (addSku) {
+    openAdd();
+    form.sku = addSku.trim();
+    toast.info(`Form barang baru dibuka dengan SKU: ${form.sku}`);
+  }
+});
+
+function handleFormScan(skuText: string) {
+  form.sku = skuText.trim();
+  showFormScanner.value = false;
+  toast.success(`Kode Barcode / SKU terisi: ${form.sku}`);
+}
 
 async function onCsvFileSelect(e: Event) {
   const input = e.target as HTMLInputElement;
@@ -57,7 +88,9 @@ async function onCsvFileSelect(e: Event) {
   try {
     const { success, failed } = await importCsv(file);
     if (success > 0) {
-      toast.success(`Berhasil mengimport ${success} produk!${failed > 0 ? ` (${failed} diabaikan / duplikat)` : ''}`);
+      toast.success(
+        `Berhasil mengimport ${success} produk!${failed > 0 ? ` (${failed} diabaikan / duplikat)` : ''}`
+      );
     } else {
       toast.error(`Gagal mengimport produk (${failed} tidak valid atau duplikat)`);
     }
@@ -74,7 +107,7 @@ const sorting = ref<SortingState>([]);
 const globalFilter = ref('');
 const pagination = ref<PaginationState>({
   pageIndex: 0,
- pageSize: 10,
+  pageSize: 10,
 });
 
 const selectedCategory = ref('Semua');
@@ -339,15 +372,19 @@ const table = useVueTable({
         v-if="table.getFilteredRowModel().rows.length > 0"
         class="border-ink bg-surface flex flex-wrap items-center justify-between gap-2 border-t-2 p-3 text-xs font-extrabold"
       >
-        <div class="text-gray-600 whitespace-nowrap">
+        <div class="whitespace-nowrap text-gray-600">
           <span class="hidden sm:inline">Menampilkan </span>
-          <span>{{ table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1 }}-{{
-            Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
-            )
-          }}</span>
-          <span class="text-gray-400 font-normal"> / </span>
+          <span
+            >{{
+              table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
+            }}-{{
+              Math.min(
+                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+                table.getFilteredRowModel().rows.length
+              )
+            }}</span
+          >
+          <span class="font-normal text-gray-400"> / </span>
           <span>{{ table.getFilteredRowModel().rows.length }}</span>
           <span class="hidden sm:inline"> barang</span>
         </div>
@@ -356,8 +393,10 @@ const table = useVueTable({
           <div class="flex items-center gap-1">
             <select
               :value="table.getState().pagination.pageSize"
-              @change="(e: Event) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
-              class="border-ink bg-white rounded-lg border-2 px-1.5 py-1 text-xs font-extrabold focus:outline-none"
+              @change="
+                (e: Event) => table.setPageSize(Number((e.target as HTMLSelectElement).value))
+              "
+              class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
               title="Baris per halaman"
             >
               <option :value="10">10</option>
@@ -412,30 +451,32 @@ const table = useVueTable({
 
         <form @submit.prevent="saveProduct" class="space-y-3 text-xs font-bold">
           <div>
-            <Label>SKU (otomatis)</Label>
+            <Label>SKU / Kode Barcode</Label>
             <div class="flex items-center gap-2">
               <Input
-                :model-value="form.sku"
-                disabled
-                class="bg-gray-100 font-mono text-ink/70"
-                title="SKU dibuat otomatis saat tambah barang"
+                v-model="form.sku"
+                placeholder="Scan barcode fisik atau isi manual"
+                class="font-mono"
               />
               <button
                 type="button"
-                :disabled="isEdit"
+                @click="showFormScanner = true"
+                class="neo-press border-ink bg-brand text-ink shadow-hard-sm shrink-0 rounded-xl border-2 p-2"
+                title="Scan Barcode Fisik dengan Kamera"
+              >
+                <Camera class="h-4 w-4" />
+              </button>
+              <button
+                type="button"
                 @click="regenerateSku"
-                class="neo-press border-ink bg-canvas text-ink shadow-hard-sm shrink-0 rounded-xl border-2 p-2 disabled:cursor-not-allowed disabled:opacity-40"
-                :title="isEdit ? 'SKU tidak diubah saat edit' : 'Buat SKU baru'"
+                class="neo-press border-ink bg-canvas text-ink shadow-hard-sm shrink-0 rounded-xl border-2 p-2"
+                title="Buat SKU acak otomatis"
               >
                 <RefreshCw class="h-4 w-4" />
               </button>
             </div>
             <p class="mt-1 text-[10px] font-semibold text-gray-500">
-              {{
-                isEdit
-                  ? 'SKU tidak dapat diubah saat edit.'
-                  : 'Kode dihasilkan otomatis — tidak perlu diisi manual.'
-              }}
+              Scan barcode fisik produk dengan kamera atau buat kode acak otomatis.
             </p>
           </div>
 
@@ -462,7 +503,7 @@ const table = useVueTable({
               :class="errors.name ? 'border-card-coral focus:ring-card-coral' : ''"
               @input="errors.name = ''"
             />
-            <p v-if="errors.name" class="mt-1 text-[11px] font-bold text-card-coral">
+            <p v-if="errors.name" class="text-card-coral mt-1 text-[11px] font-bold">
               {{ errors.name }}
             </p>
           </div>
@@ -477,7 +518,7 @@ const table = useVueTable({
                 :class="errors.costPrice ? 'border-card-coral focus:ring-card-coral' : ''"
                 @input="errors.costPrice = ''"
               />
-              <p v-if="errors.costPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+              <p v-if="errors.costPrice" class="text-card-coral mt-1 text-[11px] font-bold">
                 {{ errors.costPrice }}
               </p>
             </div>
@@ -492,7 +533,7 @@ const table = useVueTable({
                 title="Harga per satuan besar (contoh: per bungkus)"
                 @input="errors.sellingPrice = ''"
               />
-              <p v-if="errors.sellingPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+              <p v-if="errors.sellingPrice" class="text-card-coral mt-1 text-[11px] font-bold">
                 {{ errors.sellingPrice }}
               </p>
             </div>
@@ -506,7 +547,7 @@ const table = useVueTable({
                 :class="errors.stock ? 'border-card-coral focus:ring-card-coral' : ''"
                 @input="errors.stock = ''"
               />
-              <p v-if="errors.stock" class="mt-1 text-[11px] font-bold text-card-coral">
+              <p v-if="errors.stock" class="text-card-coral mt-1 text-[11px] font-bold">
                 {{ errors.stock }}
               </p>
             </div>
@@ -528,7 +569,7 @@ const table = useVueTable({
                   title="Berapa batang dalam 1 satuan utuh (1 bungkus = 12 batang). Kosongkan bila tidak jual eceran."
                   @input="errors.piecesPerUnit = ''"
                 />
-                <p v-if="errors.piecesPerUnit" class="mt-1 text-[11px] font-bold text-card-coral">
+                <p v-if="errors.piecesPerUnit" class="text-card-coral mt-1 text-[11px] font-bold">
                   {{ errors.piecesPerUnit }}
                 </p>
               </div>
@@ -544,7 +585,7 @@ const table = useVueTable({
                   title="Harga jual per batang (eceran)"
                   @input="errors.smallPrice = ''"
                 />
-                <p v-if="errors.smallPrice" class="mt-1 text-[11px] font-bold text-card-coral">
+                <p v-if="errors.smallPrice" class="text-card-coral mt-1 text-[11px] font-bold">
                   {{ errors.smallPrice }}
                 </p>
               </div>
@@ -565,7 +606,7 @@ const table = useVueTable({
                 :class="errors.minStock ? 'border-card-coral focus:ring-card-coral' : ''"
                 @input="errors.minStock = ''"
               />
-              <p v-if="errors.minStock" class="mt-1 text-[11px] font-bold text-card-coral">
+              <p v-if="errors.minStock" class="text-card-coral mt-1 text-[11px] font-bold">
                 {{ errors.minStock }}
               </p>
             </div>
@@ -581,10 +622,7 @@ const table = useVueTable({
             </div>
             <div>
               <Label>Foto URL (opsional)</Label>
-              <Input
-                v-model="form.image"
-                placeholder="https://... atau unggah"
-              />
+              <Input v-model="form.image" placeholder="https://... atau unggah" />
             </div>
           </div>
 
@@ -638,5 +676,11 @@ const table = useVueTable({
         </div>
       </div>
     </div>
+
+    <BarcodeScannerModal
+      :open="showFormScanner"
+      @close="showFormScanner = false"
+      @scan="handleFormScan"
+    />
   </div>
 </template>

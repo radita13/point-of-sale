@@ -12,6 +12,7 @@ import {
   X,
   PackageOpen,
   Bluetooth,
+  Camera,
 } from 'lucide-vue-next';
 import type { Product, TransactionItem } from '@point-of-sale/shared';
 import { db } from '@/db/database';
@@ -25,6 +26,10 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import { useAuthStore } from '@/stores';
+import { useRouter } from 'vue-router';
+import BarcodeScannerModal from '@/components/kasir/BarcodeScannerModal.vue';
+
+const router = useRouter();
 
 const cart = useCartStore();
 const printer = useBluetoothPrinter();
@@ -40,6 +45,7 @@ const products = ref<Product[]>([]);
 const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const showMobileCart = ref(false);
+const showScannerModal = ref(false);
 
 watch(showMobileCart, (isOpen) => {
   if (isOpen) {
@@ -280,6 +286,51 @@ async function connectPrinter() {
     toast.error(err instanceof Error ? err.message : 'Gagal menghubungkan printer.');
   }
 }
+
+function normalizeCode(str: string): string {
+  return str.trim().toLowerCase().replace(/^0+/, '').replace(/[^a-z0-9]/g, '');
+}
+
+function handleBarcodeScanned(skuText: string) {
+  const rawCode = skuText.trim().toLowerCase();
+  const cleanCode = normalizeCode(skuText);
+
+  const found = products.value.find((p) => {
+    const pSkuRaw = p.sku.trim().toLowerCase();
+    const pSkuClean = normalizeCode(p.sku);
+    const pNameRaw = p.name.trim().toLowerCase();
+    const pNameClean = normalizeCode(p.name);
+
+    return (
+      pSkuRaw === rawCode ||
+      pNameRaw === rawCode ||
+      (cleanCode.length > 0 && (pSkuClean === cleanCode || pNameClean === cleanCode)) ||
+      (pSkuRaw.length > 3 && rawCode.includes(pSkuRaw)) ||
+      (rawCode.length > 3 && pSkuRaw.includes(rawCode))
+    );
+  });
+
+  if (found) {
+    if (found.stock <= 0) {
+      toast.error(`Stok ${found.name} habis!`);
+      return;
+    }
+    cart.addToCart(found, 1);
+    toast.success(`${found.name} ditambahkan ke keranjang.`);
+    showScannerModal.value = false;
+  } else {
+    searchQuery.value = skuText;
+    showScannerModal.value = false;
+    toast.warning(`Produk "${skuText}" belum terdaftar di katalog.`, {
+      action: {
+        label: '+ Tambah Barang',
+        onClick: () => {
+          router.push(`/inventaris?addSku=${encodeURIComponent(skuText)}`);
+        },
+      },
+    });
+  }
+}
 </script>
 
 <template>
@@ -293,8 +344,15 @@ async function connectPrinter() {
             v-model="searchQuery"
             type="text"
             placeholder="Cari nama barang atau SKU..."
-            class="border-ink bg-canvas text-ink focus:ring-brand h-11 w-full rounded-xl border-2 pr-10 pl-9 text-sm font-bold focus:ring-2 focus:outline-none"
+            class="border-ink bg-canvas text-ink focus:ring-brand h-11 w-full rounded-xl border-2 pr-12 pl-9 text-sm font-bold focus:ring-2 focus:outline-none"
           />
+          <button
+            @click="showScannerModal = true"
+            title="Scan Barcode / SKU Kamera"
+            class="neo-press border-ink bg-brand text-ink shadow-hard-xs absolute right-1.5 flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-2 font-bold"
+          >
+            <Camera class="h-4 w-4" />
+          </button>
         </div>
 
         <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -900,5 +958,11 @@ async function connectPrinter() {
         </div>
       </div>
     </div>
+
+    <BarcodeScannerModal
+      :open="showScannerModal"
+      @close="showScannerModal = false"
+      @scan="handleBarcodeScanned"
+    />
   </div>
 </template>
