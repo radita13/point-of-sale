@@ -6,7 +6,15 @@ import { db } from '@/db/database';
 import { makeUuid } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
 
-import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product';
+const CATEGORIES = [
+  'Beras & Minyak',
+  'Bumbu Dapur',
+  'Minuman',
+  'Makanan & Snack',
+  'Rokok',
+  'Kebutuhan Harian',
+];
+const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset', 'bat'] as const;
 
 export function useInventory() {
   function emptyForm(): Product {

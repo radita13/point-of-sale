@@ -9,18 +9,6 @@ export function formatPrice(value: number | undefined | null): string {
   return new Intl.NumberFormat('id-ID').format(Math.round(value ?? 0));
 }
 
-export function formatDate(value: number | Date | undefined | null): string {
-  if (!value) return '-';
-  const d = typeof value === 'number' ? new Date(value) : value;
-  return d.toLocaleString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 export function makeUuid(): string {
   return crypto.randomUUID();
 }
