@@ -27,6 +27,7 @@ import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import { useAuthStore } from '@/stores';
 import { useRouter } from 'vue-router';
+import { CATEGORIES, getCategoryCardColor } from '@/constants/product';
 import BarcodeScannerModal from '@/components/kasir/BarcodeScannerModal.vue';
 
 const router = useRouter();
@@ -71,27 +72,8 @@ onUnmounted(() => {
   document.body.style.overflow = '';
 });
 
-const categories = [
-  'Semua',
-  'Beras & Minyak',
-  'Bumbu Dapur',
-  'Minuman',
-  'Makanan & Snack',
-  'Rokok',
-  'Kebutuhan Harian',
-];
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Beras & Minyak': 'bg-card-yellow text-ink',
-  'Bumbu Dapur': 'bg-card-green text-white',
-  Minuman: 'bg-card-coral text-white',
-  'Makanan & Snack': 'bg-card-purple text-white',
-  Rokok: 'bg-card-blue text-white',
-  'Kebutuhan Harian': 'bg-card-teal text-white',
-};
-
 function cardColor(p: Product): string {
-  return CATEGORY_COLORS[p.category] ?? 'bg-card-teal text-white';
+  return getCategoryCardColor(p);
 }
 
 async function loadProducts() {
@@ -357,7 +339,7 @@ function handleBarcodeScanned(skuText: string) {
 
         <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
           <button
-            v-for="cat in categories"
+            v-for="cat in CATEGORIES"
             :key="cat"
             @click="selectedCategory = cat"
             :class="selectedCategory === cat ? 'bg-ink text-white' : 'bg-canvas text-ink'"

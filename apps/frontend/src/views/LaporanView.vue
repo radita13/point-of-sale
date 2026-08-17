@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import {
   Calculator,
   ChartLine,
@@ -11,22 +11,15 @@ import {
   TrendingUp,
   Trophy,
 } from 'lucide-vue-next';
-import type { Product, Transaction, TransactionItem } from '@point-of-sale/shared';
+import type { Product, Transaction } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { formatPrice } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
-import Select, { type SelectOption } from '@/components/ui/Select.vue';
+import Select from '@/components/ui/Select.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
-
-type ReportFilter = 'today' | 'week' | 'month' | 'all';
-
-const FILTER_OPTIONS: SelectOption[] = [
-  { value: 'today', label: 'Hari Ini' },
-  { value: 'week', label: '7 Hari Terakhir' },
-  { value: 'month', label: 'Bulan Ini' },
-  { value: 'all', label: 'Semua Waktu' },
-];
+import { useReportMetrics, type ReportFilter } from '@/composables/useReportMetrics';
+import { FILTER_OPTIONS } from '@/constants/product';
 
 const reportFilter = ref<ReportFilter>('today');
 const transactions = ref<Transaction[]>([]);
@@ -34,17 +27,17 @@ const products = ref<Product[]>([]);
 const isLoading = ref(true);
 const restoring = ref(false);
 const restoreError = ref<string | null>(null);
-const currentPage = ref(1);
 const pageSize = 10;
 const sync = useSyncStore();
 
-function onPageReset() {
-  currentPage.value = 1;
-}
-
-watch(reportFilter, () => {
-  currentPage.value = 1;
-});
+const {
+  currentPage,
+  totalPages,
+  filteredTransactions,
+  paginatedTransactions,
+  reportMetrics,
+  productSalesSummary,
+} = useReportMetrics(transactions, products, reportFilter, pageSize);
 
 async function load() {
   const [txs, prods] = await Promise.all([
@@ -53,7 +46,7 @@ async function load() {
   ]);
   transactions.value = txs;
   products.value = prods;
-  onPageReset();
+  currentPage.value = 1;
 }
 
 onMounted(async () => {
@@ -68,83 +61,8 @@ onMounted(async () => {
     }
     if (sync.lastError) restoreError.value = sync.lastError;
   }
+  await load();
   isLoading.value = false;
-});
-
-function inPeriod(ts: number): boolean {
-  const d = new Date(ts);
-  const now = new Date();
-  switch (reportFilter.value) {
-    case 'today':
-      return d.toDateString() === now.toDateString();
-    case 'week':
-      return (now.getTime() - d.getTime()) / (1000 * 3600 * 24) <= 7;
-    case 'month':
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    case 'all':
-      return true;
-  }
-}
-
-const filteredTransactions = computed(() =>
-  transactions.value.filter((tx) => inPeriod(tx.timestamp))
-);
-
-const totalPages = computed(() => Math.ceil(filteredTransactions.value.length / pageSize) || 1);
-
-const paginatedTransactions = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return filteredTransactions.value.slice(start, start + pageSize);
-});
-
-const costByProduct = computed(() => {
-  const map = new Map<string, number>();
-  for (const p of products.value) map.set(p.id, p.costPrice);
-  return map;
-});
-
-function itemCost(item: TransactionItem): number {
-  if (typeof item.costPrice === 'number') return item.costPrice;
-  return costByProduct.value.get(item.productId) ?? 0;
-}
-
-const reportMetrics = computed(() => {
-  let totalRevenue = 0;
-  let totalCost = 0;
-  for (const tx of filteredTransactions.value) {
-    totalRevenue += tx.finalAmount || 0;
-    for (const it of tx.items) totalCost += itemCost(it) * it.qty;
-  }
-  const count = filteredTransactions.value.length;
-  return {
-    totalRevenue,
-    totalProfit: totalRevenue - totalCost,
-    count,
-    averageTicket: count > 0 ? Math.round(totalRevenue / count) : 0,
-  };
-});
-
-const productSalesSummary = computed(() => {
-  const map = new Map<
-    string,
-    { name: string; unit: string; totalQty: number; totalSales: number; totalProfit: number }
-  >();
-  for (const tx of filteredTransactions.value) {
-    for (const it of tx.items) {
-      const entry = map.get(it.productName) ?? {
-        name: it.productName,
-        unit: it.unit,
-        totalQty: 0,
-        totalSales: 0,
-        totalProfit: 0,
-      };
-      entry.totalQty += it.qty;
-      entry.totalSales += it.price * it.qty;
-      entry.totalProfit += (it.price - itemCost(it)) * it.qty;
-      map.set(it.productName, entry);
-    }
-  }
-  return [...map.values()].sort((a, b) => b.totalSales - a.totalSales);
 });
 </script>
 
