@@ -136,7 +136,9 @@ export function useInventory() {
       if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0)
         delete (product as unknown as Record<string, unknown>)[key];
     }
-    if (product.piecesPerUnit === undefined || product.piecesPerUnit <= 1) {
+    if (product.image === null || product.image === '') delete product.image;
+    if (product.step === null) delete product.step;
+    if (product.piecesPerUnit === undefined || product.piecesPerUnit === null || product.piecesPerUnit <= 1) {
       delete product.piecesPerUnit;
       delete product.smallUnit;
       delete product.smallPrice;
