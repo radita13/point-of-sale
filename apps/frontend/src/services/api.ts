@@ -39,6 +39,9 @@ async function request<T>(path: string, init: RequestInit & ApiOptions = {}): Pr
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    if (res.status === 401) {
+      console.warn('[API Interceptor] Sesi token kedaluwarsa atau tidak valid (HTTP 401).');
+    }
     throw new Error(`API ${res.status}: ${detail}`);
   }
   return (await res.json()) as T;

@@ -5,7 +5,7 @@ import { ClipboardCheck, Save, Search, ChevronLeft, ChevronRight } from 'lucide-
 import type { InventoryAdjustment, Product } from '@point-of-sale/shared';
 import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { makeUuid } from '@/lib/utils';
+import { formatQty, makeUuid } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
@@ -221,13 +221,13 @@ void sync;
                 {{ getStockDiff(p)! > 0 ? `+${getStockDiff(p)}` : getStockDiff(p) }} {{ p.unit }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-gray-600">Stok Sistem: {{ p.stock }} {{ p.unit }}</p>
+            <p class="text-[10px] font-bold text-gray-600">Stok Sistem: {{ formatQty(p.stock) }} {{ p.unit }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-1">
             <input
               type="number"
               step="0.1"
-              :placeholder="String(p.stock)"
+              :placeholder="formatQty(p.stock)"
               :value="changes[p.id] ?? ''"
               @input="(e) => (changes[p.id] = (e.target as HTMLInputElement).value)"
               class="border-ink focus:ring-brand w-16 rounded-md border bg-white py-1 text-center text-xs font-bold focus:ring-2 focus:outline-none"

@@ -14,6 +14,9 @@ export class POSDatabase extends Dexie {
     this.version(2).stores({
       products: "id, sku, name, category, stock, updatedAt",
     });
+    this.version(3).stores({
+      products: "id, sku, name, category, stock, updatedAt",
+    });
   }
 }
 

@@ -13,7 +13,7 @@ export const CATEGORIES = [
 
 export const PRODUCT_CATEGORIES = CATEGORIES.filter((c) => c !== 'Semua');
 
-export const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset', 'bat'] as const;
+export const UNITS = ['kg', 'pcs', 'liter', 'pak', 'saset'] as const;
 
 export const CATEGORY_COLORS: Record<string, string> = {
   'Beras & Minyak': 'bg-card-yellow text-ink',

@@ -13,7 +13,7 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-function round6(n: number): number {
+export function round6(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
 

@@ -16,8 +16,8 @@ import {
 } from 'lucide-vue-next';
 import type { Product, TransactionItem } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { formatPrice } from '@/lib/utils';
-import { useCartStore, lineSubtotal, splitPieces } from '@/stores/cart';
+import { formatPrice, formatQty } from '@/lib/utils';
+import { useCartStore, lineSubtotal, splitPieces, round6 } from '@/stores/cart';
 import { commitTransaction } from '@/services/transactions';
 import { useBluetoothPrinter } from '@/composables/useBluetoothPrinter';
 import { useSyncStore } from '@/stores/sync';
@@ -103,8 +103,6 @@ const filteredProducts = computed(() => {
 function isPieces(p: Product): boolean {
   return !!p.piecesPerUnit && p.piecesPerUnit > 1;
 }
-
-const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
 
 function quickStep(p: Product): number {
   if (isPieces(p)) return 1 / (p.piecesPerUnit ?? 1);
@@ -397,7 +395,7 @@ function handleBarcodeScanned(skuText: string) {
 
           <div class="mt-3 flex flex-col gap-1.5 border-t border-white/20 pt-2">
             <div class="flex items-center justify-between text-[11px] font-semibold text-white/90">
-              <span>Stok: {{ p.stock }} {{ p.unit }}</span>
+              <span>Stok: {{ formatQty(p.stock) }} {{ p.unit }}</span>
             </div>
             <!-- Single button untuk barang step=1 & non-tier -->
             <template v-if="isUnitOnly(p)">

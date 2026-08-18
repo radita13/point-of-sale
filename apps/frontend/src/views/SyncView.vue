@@ -13,7 +13,7 @@ import {
 } from 'lucide-vue-next';
 import type { Product, Transaction } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, formatQty } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import { useNetworkStore } from '@/stores';
@@ -156,11 +156,13 @@ async function handleRetrySingle(tx: Transaction) {
             <Settings class="h-5 w-5" />
           </div>
           <div class="leading-tight">
-            <h1 class="text-base font-extrabold sm:text-lg">Pengaturan Sync</h1>
-            <p class="text-ink/50 text-[11px] font-bold">Offline Engine &amp; Background Sync</p>
+            <h1 class="text-base font-extrabold sm:text-lg">Pengaturan Sinkronisasi Data</h1>
+            <p class="text-ink/50 text-[11px] font-bold">
+              Sinkronkan semua aktifitas toko ke server
+            </p>
           </div>
         </div>
-        <Button variant="secondary" @click="router.push({ name: 'kasir' })">
+        <Button variant="secondary" @click="router.push({ name: 'kasir' })" class="cursor-pointer">
           <ArrowLeft class="h-4 w-4" /> Kembali
         </Button>
       </div>
@@ -172,9 +174,9 @@ async function handleRetrySingle(tx: Transaction) {
           class="border-ink bg-surface shadow-hard-md flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 p-4"
         >
           <div>
-            <h2 class="text-lg font-extrabold">Offline Engine & Background Sync</h2>
+            <h2 class="text-lg font-extrabold">Status Sinkronisasi</h2>
             <p class="text-xs font-semibold text-gray-600">
-              IndexedDB Queue & Status Auto-Sync Server
+              Klik tombol <b>Sinkronisasi</b> untuk, sinkronisasi manual
             </p>
             <p v-if="sync.lastError" class="text-card-coral mt-1 text-[11px] font-bold">
               Terakhir gagal: {{ sync.lastError }}
@@ -189,7 +191,7 @@ async function handleRetrySingle(tx: Transaction) {
             @click="forceSyncNow"
           >
             <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': sync.syncing }" />
-            {{ sync.syncing ? 'Menyinkronkan...' : 'Sync Antrean Sekarang' }}
+            {{ sync.syncing ? 'Menyinkronkan...' : 'Sinkronkan' }}
           </Button>
         </div>
 
@@ -270,7 +272,7 @@ async function handleRetrySingle(tx: Transaction) {
                   <div class="min-w-0">
                     <h4 class="truncate font-extrabold">{{ p.name }}</h4>
                     <p class="text-[10px] text-gray-600">
-                      SKU: #{{ p.sku }} • Stok: {{ p.stock }} {{ p.unit }}
+                      SKU: #{{ p.sku }} • Stok: {{ formatQty(p.stock) }} {{ p.unit }}
                     </p>
                   </div>
                 </div>
@@ -293,9 +295,9 @@ async function handleRetrySingle(tx: Transaction) {
                 <AlertTriangle class="h-4 w-4" />
               </div>
               <div>
-                <h3 class="text-sm font-extrabold">Log Riwayat Error Sync</h3>
+                <h3 class="text-sm font-extrabold">Log Riwayat Error Sinkronisasi</h3>
                 <p class="text-[10px] font-semibold text-gray-600">
-                  Daftar transaksi yang dilewati atau bermasalah saat sync server
+                  Daftar transaksi yang dilewati atau bermasalah saat sinkronisasi server
                 </p>
               </div>
             </div>

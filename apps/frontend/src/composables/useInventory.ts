@@ -74,7 +74,12 @@ export function useInventory() {
       hasError = true;
     }
 
-    if (form.sellingPrice === undefined || form.sellingPrice === null || isNaN(form.sellingPrice) || form.sellingPrice <= 0) {
+    if (
+      form.sellingPrice === undefined ||
+      form.sellingPrice === null ||
+      isNaN(form.sellingPrice) ||
+      form.sellingPrice <= 0
+    ) {
       errors.sellingPrice = 'Harga jual wajib diisi dan harus lebih dari 0';
       hasError = true;
     }
@@ -94,27 +99,42 @@ export function useInventory() {
       hasError = true;
     }
 
-    if (form.piecesPerUnit !== undefined && form.piecesPerUnit !== null && form.piecesPerUnit > 0 && form.piecesPerUnit <= 1) {
+    if (
+      form.piecesPerUnit !== undefined &&
+      form.piecesPerUnit !== null &&
+      form.piecesPerUnit > 0 &&
+      form.piecesPerUnit <= 1
+    ) {
       errors.piecesPerUnit = 'Isi eceran minimal 2 batang';
       hasError = true;
     }
 
     if (form.piecesPerUnit && form.piecesPerUnit > 1) {
-      if (form.smallPrice === undefined || form.smallPrice === null || isNaN(form.smallPrice) || form.smallPrice <= 0) {
+      if (
+        form.smallPrice === undefined ||
+        form.smallPrice === null ||
+        isNaN(form.smallPrice) ||
+        form.smallPrice <= 0
+      ) {
         errors.smallPrice = 'Harga per batang wajib diisi & > 0';
         hasError = true;
       }
     }
 
     if (hasError) {
-      toast.error('Periksa kembali input yang belum valid');
+      toast.error('Periksa kembali input yang belum diisi');
       return;
     }
 
     const product = { ...form } as Product;
+    if (typeof product.stock === 'number') product.stock = Number(product.stock.toFixed(3));
+    if (typeof product.minStock === 'number')
+      product.minStock = Number(product.minStock.toFixed(3));
+    if (typeof product.step === 'number') product.step = Number(product.step.toFixed(3));
     for (const key of ['step', 'piecesPerUnit', 'smallPrice'] as const) {
       const n = (product as unknown as Record<string, unknown>)[key];
-      if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) delete (product as unknown as Record<string, unknown>)[key];
+      if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0)
+        delete (product as unknown as Record<string, unknown>)[key];
     }
     if (product.piecesPerUnit === undefined || product.piecesPerUnit <= 1) {
       delete product.piecesPerUnit;
@@ -132,12 +152,19 @@ export function useInventory() {
     try {
       if (isEdit.value) {
         const nameExists = await db.products
-          .filter((p) => !p.isDeleted && p.id !== saved.id && p.name.toLowerCase().trim() === saved.name.toLowerCase().trim())
+          .filter(
+            (p) =>
+              !p.isDeleted &&
+              p.id !== saved.id &&
+              p.name.toLowerCase().trim() === saved.name.toLowerCase().trim()
+          )
           .first();
 
         if (nameExists) {
           errors.name = `Nama "${saved.name}" sudah digunakan (SKU: ${nameExists.sku})`;
-          toast.error(`Gagal: Nama "${saved.name}" sudah digunakan oleh produk lain (SKU: ${nameExists.sku})`);
+          toast.error(
+            `Gagal: Nama "${saved.name}" sudah digunakan oleh produk lain (SKU: ${nameExists.sku})`
+          );
           return;
         }
 
@@ -145,9 +172,11 @@ export function useInventory() {
         toast.success(`Produk "${saved.name}" diperbarui.`);
       } else {
         const nameExists = await db.products
-          .filter((p) => !p.isDeleted && p.name.toLowerCase().trim() === saved.name.toLowerCase().trim())
+          .filter(
+            (p) => !p.isDeleted && p.name.toLowerCase().trim() === saved.name.toLowerCase().trim()
+          )
           .first();
-        
+
         if (nameExists) {
           errors.name = `Produk "${saved.name}" sudah terdaftar (SKU: ${nameExists.sku})`;
           toast.error(`Gagal: Produk "${saved.name}" sudah terdaftar (SKU: ${nameExists.sku})`);
@@ -158,7 +187,9 @@ export function useInventory() {
         toast.success(`Produk baru "${saved.name}" ditambahkan.`);
       }
       closeModal();
-      refresh();
+      await refresh();
+      await useSyncStore().refreshCount();
+      if (navigator.onLine) useSyncStore().runSync();
     } catch (err) {
       toast.error(`Gagal menyimpan produk: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -219,8 +250,14 @@ export function useInventory() {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const url = URL.createObjectURL(file);
         const el = new Image();
-        el.onload = () => { URL.revokeObjectURL(url); resolve(el); };
-        el.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Gagal membaca file gambar')); };
+        el.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(el);
+        };
+        el.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Gagal membaca file gambar'));
+        };
         el.src = url;
       });
       width = img.width;
@@ -232,16 +269,19 @@ export function useInventory() {
     const w = Math.max(1, Math.round(width * scale));
     const h = Math.max(1, Math.round(height * scale));
     const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas tidak didukung');
     ctx.drawImage(drawSource, 0, 0, w, h);
     if ('close' in drawSource && typeof drawSource.close === 'function') drawSource.close();
 
-    const mime = canvas.toDataURL('image/webp').startsWith('data:image/webp') ? 'image/webp' : 'image/jpeg';
+    const mime = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+      ? 'image/webp'
+      : 'image/jpeg';
     let q = 0.75;
     let url = canvas.toDataURL(mime, q);
-    while (q > 0.45 && Math.floor(((url.slice(url.indexOf(',') + 1).length * 3) / 4)) > 64 * 1024) {
+    while (q > 0.45 && Math.floor((url.slice(url.indexOf(',') + 1).length * 3) / 4) > 64 * 1024) {
       q = Math.max(0.45, q - 0.08);
       url = canvas.toDataURL(mime, q);
     }
@@ -351,18 +391,20 @@ export function useInventory() {
         continue;
       }
 
-      const inputSku = (skuIdx !== -1 && cols[skuIdx]) ? cols[skuIdx].trim() : '';
+      const inputSku = skuIdx !== -1 && cols[skuIdx] ? cols[skuIdx].trim() : '';
       const nameKey = name.toLowerCase().trim();
       const skuKey = inputSku.toLowerCase();
 
-      const existing = existingMapByName.get(nameKey) || (skuKey ? existingMapBySku.get(skuKey) : undefined);
+      const existing =
+        existingMapByName.get(nameKey) || (skuKey ? existingMapBySku.get(skuKey) : undefined);
 
-      const category = (categoryIdx !== -1 && cols[categoryIdx]) ? cols[categoryIdx] : CATEGORIES[0];
-      const costPrice = (costPriceIdx !== -1) ? parseFloat(cols[costPriceIdx] || '0') : 0;
-      const unit = (unitIdx !== -1 && cols[unitIdx]) ? cols[unitIdx] as any : 'pcs';
-      const minStock = (minStockIdx !== -1) ? parseFloat(cols[minStockIdx] || '5') : 5;
-      const piecesPerUnit = (piecesPerUnitIdx !== -1) ? parseInt(cols[piecesPerUnitIdx] || '0', 10) : undefined;
-      const smallPrice = (smallPriceIdx !== -1) ? parseFloat(cols[smallPriceIdx] || '0') : undefined;
+      const category = categoryIdx !== -1 && cols[categoryIdx] ? cols[categoryIdx] : CATEGORIES[0];
+      const costPrice = costPriceIdx !== -1 ? parseFloat(cols[costPriceIdx] || '0') : 0;
+      const unit = unitIdx !== -1 && cols[unitIdx] ? (cols[unitIdx] as any) : 'pcs';
+      const minStock = minStockIdx !== -1 ? parseFloat(cols[minStockIdx] || '5') : 5;
+      const piecesPerUnit =
+        piecesPerUnitIdx !== -1 ? parseInt(cols[piecesPerUnitIdx] || '0', 10) : undefined;
+      const smallPrice = smallPriceIdx !== -1 ? parseFloat(cols[smallPriceIdx] || '0') : undefined;
 
       if (existing) {
         // Smart Update: Update metadata & harga, PERTAHANKAN stok berjalan aktual di toko
@@ -393,8 +435,8 @@ export function useInventory() {
         updateProducts.push(updatedProduct);
       } else {
         // Produk Baru: Buat baru termasuk stok awal dari CSV
-        const sku = inputSku || await generateSku();
-        const stock = (stockIdx !== -1) ? parseFloat(cols[stockIdx] || '0') : 0;
+        const sku = inputSku || (await generateSku());
+        const stock = stockIdx !== -1 ? parseFloat(cols[stockIdx] || '0') : 0;
 
         const newP: Product = {
           id: makeUuid(),

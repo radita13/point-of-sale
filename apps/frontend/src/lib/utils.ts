@@ -21,6 +21,13 @@ export function formatDate(value: number | Date | undefined | null): string {
   });
 }
 
+export function formatQty(val: number | string | null | undefined): string {
+  if (val === null || val === undefined || val === '') return '0';
+  const num = typeof val === 'string' ? parseFloat(val) : val;
+  if (isNaN(num)) return '0';
+  return Number(num.toFixed(3)).toString();
+}
+
 export function makeUuid(): string {
   return crypto.randomUUID();
 }

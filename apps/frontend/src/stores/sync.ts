@@ -190,7 +190,16 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       const rows = await api.getProducts(getStoreId());
       if (rows.length === 0) return 0;
-      const withSync = rows.map((p) => ({ ...p, isSynced: true }));
+      const withSync = rows.map((p) => ({
+        ...p,
+        stock: Number(p.stock),
+        minStock: Number(p.minStock),
+        step: p.step != null ? Number(p.step) : undefined,
+        costPrice: Number(p.costPrice),
+        sellingPrice: Number(p.sellingPrice),
+        smallPrice: p.smallPrice != null ? Number(p.smallPrice) : undefined,
+        isSynced: true,
+      }));
       await db.products.bulkPut(withSync);
       await refreshCount();
       return rows.length;

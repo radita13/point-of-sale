@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import type { ReceiptData } from './receipt';
+import { formatPrice } from '@/lib/utils';
 
 type NavigatorWithBLE = Navigator & {
   bluetooth?: {
@@ -37,13 +38,13 @@ export function useBluetoothPrinter() {
       `================================\nNo. Nota : ${r.invoiceNo}\nTanggal  : ${r.date}\nKasir    : ${r.cashier}\n================================\n`;
 
     for (const it of r.items) {
-      payload += `${it.name}\n  ${it.qty} ${it.unit} x ${it.price.toLocaleString('id-ID')}\n${' '.repeat(16)}${it.subtotal.toLocaleString('id-ID')}\n`;
+      payload += `${it.name}\n  ${it.qty} ${it.unit} x ${formatPrice(it.price)}\n${' '.repeat(16)}${formatPrice(it.subtotal)}\n`;
     }
 
-    payload += `--------------------------------\n${'Subtotal'.padEnd(16)}${r.items.reduce((s, i) => s + i.subtotal, 0).toLocaleString('id-ID')}\n` +
-      `${'TOTAL'.padEnd(16)}${r.total.toLocaleString('id-ID')}\n` +
-      `${'BAYAR'.padEnd(16)}${r.pay.toLocaleString('id-ID')}\n` +
-      `${'KEMBALI'.padEnd(16)}${r.change.toLocaleString('id-ID')}\n` +
+    payload += `--------------------------------\n${'Subtotal'.padEnd(16)}${formatPrice(r.items.reduce((s, i) => s + i.subtotal, 0))}\n` +
+      `${'TOTAL'.padEnd(16)}${formatPrice(r.total)}\n` +
+      `${'BAYAR'.padEnd(16)}${formatPrice(r.pay)}\n` +
+      `${'KEMBALI'.padEnd(16)}${formatPrice(r.change)}\n` +
       `\x1ba\x01\n*** TERIMA KASIH ***\nBarang yang sudah dibeli tidak dapat ditukar.\n\x1ba\x00\n\n\n\x1d\x56\x42`;
 
     await characteristic.writeValue(new TextEncoder().encode(payload) as unknown as BufferSource);
