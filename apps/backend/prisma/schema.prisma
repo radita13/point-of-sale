@@ -28,10 +28,10 @@ model Product {
   category         String
   costPrice        Decimal               @db.Decimal(12, 2)
   sellingPrice     Decimal               @db.Decimal(12, 2)
-  stock            Decimal               @db.Decimal(12, 3)
-  minStock         Decimal               @db.Decimal(12, 3)
+  stock            Float
+  minStock         Float
   unit             String
-  step             Decimal?              @db.Decimal(12, 3)
+  step             Float?
   piecesPerUnit    Int?
   smallUnit        String?
   smallPrice       Decimal?              @db.Decimal(12, 2)
@@ -73,7 +73,7 @@ model TransactionItem {
   product       Product     @relation(fields: [productId], references: [id])
   productName   String
   sku           String?
-  qty           Decimal     @db.Decimal(12, 3)
+  qty           Float
   unit          String
   price         Decimal     @db.Decimal(12, 2)
   costPrice     Decimal?    @db.Decimal(12, 2)
@@ -89,7 +89,7 @@ model InventoryAdjustment {
   store      Store    @relation(fields: [storeId], references: [id])
   productId  String   @db.Uuid
   product    Product  @relation(fields: [productId], references: [id])
-  quantity   Decimal  @db.Decimal(12, 3)
+  quantity   Float
   note       String?
   adjustedAt DateTime
 

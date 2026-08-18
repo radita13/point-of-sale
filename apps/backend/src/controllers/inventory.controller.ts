@@ -28,7 +28,7 @@ export async function getLowStock(req: any, res: any): Promise<void> {
         unit: string;
       }>
     >`
-      SELECT "serverId", "sku", "name", "stock"::float, "minStock"::float, "unit"
+      SELECT "serverId", "sku", "name", "stock", "minStock", "unit"
       FROM "products"
       WHERE "storeId" = ${storeId}::uuid
         AND "isDeleted" = false

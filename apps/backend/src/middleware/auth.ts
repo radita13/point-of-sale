@@ -1,8 +1,7 @@
-import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
 export interface SupabaseAuthResult {
-  sub: string; // Supabase user UUID
+  sub: string;
   email?: string | null;
 }
 
@@ -42,7 +41,9 @@ export async function authGuard(req: any, res: any, next: any) {
     } catch (err) {
       const expired = err instanceof jwt.TokenExpiredError;
       if (expired || !supabaseUrl) {
-        console.warn(`[auth] token HS256 ditolak: ${err instanceof Error ? err.message : String(err)}`);
+        console.warn(
+          `[auth] token HS256 ditolak: ${err instanceof Error ? err.message : String(err)}`,
+        );
         return res.status(401).json({
           error: expired
             ? "Token telah kedaluwarsa, silakan login ulang"
@@ -72,7 +73,10 @@ export async function authGuard(req: any, res: any, next: any) {
       const response: any = await fetch(url.toString(), { headers });
 
       if (response.ok) {
-        const userData = (await response.json()) as { id: string; email?: string };
+        const userData = (await response.json()) as {
+          id: string;
+          email?: string;
+        };
         if (userData?.id) {
           req.auth = {
             sub: userData.id,
@@ -82,7 +86,14 @@ export async function authGuard(req: any, res: any, next: any) {
         }
       } else {
         const errText = await response.text().catch(() => "");
-        console.warn(`[auth] Supabase Auth API menolak token (${response.status}): ${errText}`);
+        console.warn(
+          `[auth] Supabase Auth API menolak token (${response.status}): ${errText}`,
+        );
+        if (response.status === 403 || response.status === 401) {
+          return res.status(401).json({
+            error: "Sesi login telah berakhir atau dicabut, silakan login ulang",
+          });
+        }
       }
     } catch (fetchErr) {
       console.error("[auth] Gagal menghubungi Supabase Auth API:", fetchErr);

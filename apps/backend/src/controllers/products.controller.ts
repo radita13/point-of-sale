@@ -1,20 +1,32 @@
-import type { Request, Response } from 'express';
-import { prisma } from '../db.js';
-import { toPrismaError } from '../lib/errors.js';
-import { requireStoreAccess } from '../middleware/store-access.js';
-import { productSyncPayloadSchema } from '@point-of-sale/shared';
-import { uploadProductImage } from '../lib/storage.js';
+import { prisma } from "../db.js";
+import { toPrismaError } from "../lib/errors.js";
+import { requireStoreAccess } from "../middleware/store-access.js";
+import { productSyncPayloadSchema } from "@point-of-sale/shared";
+import { uploadProductImage } from "../lib/storage.js";
+
+function cleanQty(val: any): number {
+  if (val === undefined || val === null) return 0;
+  const num = Number(val);
+  if (isNaN(num)) return 0;
+  return num;
+}
 
 export async function getProducts(req: any, res: any): Promise<void> {
-  const storeId = String(req.query.storeId ?? '');
+  const storeId = String(req.query.storeId ?? "");
   if (!storeId) {
-    res.status(400).json({ error: 'storeId query parameter required' });
+    res.status(400).json({ error: "storeId query parameter required" });
     return;
   }
   if (!(await requireStoreAccess(req, res, storeId))) return;
 
-  const page = req.query.page !== undefined ? Math.max(1, parseInt(String(req.query.page), 10) || 1) : undefined;
-  const limit = req.query.limit !== undefined ? Math.max(1, parseInt(String(req.query.limit), 10) || 10) : 10;
+  const page =
+    req.query.page !== undefined
+      ? Math.max(1, parseInt(String(req.query.page), 10) || 1)
+      : undefined;
+  const limit =
+    req.query.limit !== undefined
+      ? Math.max(1, parseInt(String(req.query.limit), 10) || 10)
+      : 10;
 
   try {
     const where = { storeId, isDeleted: false };
@@ -24,7 +36,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
         prisma.product.count({ where }),
         prisma.product.findMany({
           where,
-          orderBy: { name: 'asc' },
+          orderBy: { name: "asc" },
           skip: (page - 1) * limit,
           take: limit,
         }),
@@ -37,10 +49,10 @@ export async function getProducts(req: any, res: any): Promise<void> {
         category: p.category,
         costPrice: p.costPrice.toNumber(),
         sellingPrice: p.sellingPrice.toNumber(),
-        stock: p.stock.toNumber(),
-        minStock: p.minStock.toNumber(),
+        stock: cleanQty(p.stock),
+        minStock: cleanQty(p.minStock),
         unit: p.unit,
-        step: p.step?.toNumber() ?? undefined,
+        step: p.step ? cleanQty(p.step) : undefined,
         piecesPerUnit: p.piecesPerUnit ?? undefined,
         smallUnit: p.smallUnit ?? undefined,
         smallPrice: p.smallPrice?.toNumber() ?? undefined,
@@ -63,7 +75,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
 
     const products = await prisma.product.findMany({
       where,
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
     });
 
     res.json(
@@ -74,10 +86,10 @@ export async function getProducts(req: any, res: any): Promise<void> {
         category: p.category,
         costPrice: p.costPrice.toNumber(),
         sellingPrice: p.sellingPrice.toNumber(),
-        stock: p.stock.toNumber(),
-        minStock: p.minStock.toNumber(),
+        stock: cleanQty(p.stock),
+        minStock: cleanQty(p.minStock),
         unit: p.unit,
-        step: p.step?.toNumber() ?? undefined,
+        step: p.step ? cleanQty(p.step) : undefined,
         piecesPerUnit: p.piecesPerUnit ?? undefined,
         smallUnit: p.smallUnit ?? undefined,
         smallPrice: p.smallPrice?.toNumber() ?? undefined,
@@ -94,7 +106,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
 export async function syncProducts(req: any, res: any): Promise<void> {
   const { storeId, products } = req.validated ?? req.body ?? {};
   if (!storeId || !products) {
-    res.status(400).json({ error: 'Payload tidak valid' });
+    res.status(400).json({ error: "Payload tidak valid" });
     return;
   }
   if (!(await requireStoreAccess(req, res, storeId))) return;
@@ -125,11 +137,11 @@ export async function syncProducts(req: any, res: any): Promise<void> {
     let image = p.image ?? null;
     if (p.isDeleted) {
       image = null;
-    } else if (image && image.startsWith('data:')) {
+    } else if (image && image.startsWith("data:")) {
       try {
         image = await uploadProductImage(image, p.id);
       } catch (err) {
-        console.warn('[products/sync] upload foto gagal, foto di-skip:', err);
+        console.warn("[products/sync] upload foto gagal, foto di-skip:", err);
         image = null;
       }
     }
@@ -141,10 +153,10 @@ export async function syncProducts(req: any, res: any): Promise<void> {
       category: p.category,
       costPrice: p.costPrice,
       sellingPrice: p.sellingPrice,
-      stock: p.stock,
-      minStock: p.minStock,
+      stock: cleanQty(p.stock) ?? 0,
+      minStock: cleanQty(p.minStock) ?? 0,
       unit: p.unit,
-      step: p.step ?? null,
+      step: cleanQty(p.step) ?? null,
       piecesPerUnit: p.piecesPerUnit ?? null,
       smallUnit: p.smallUnit ?? null,
       smallPrice: p.smallPrice ?? null,
