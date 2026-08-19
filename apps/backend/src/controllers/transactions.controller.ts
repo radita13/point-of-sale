@@ -180,7 +180,7 @@ export async function getTransactions(req: any, res: any): Promise<void> {
           productId: it.productId,
           productName: it.productName,
           sku: it.sku ?? undefined,
-          qty: it.qty.toNumber(),
+          qty: Number(it.qty),
           unit: it.unit as Unit,
           price: it.price.toNumber(),
           costPrice: it.costPrice ? it.costPrice.toNumber() : undefined,
