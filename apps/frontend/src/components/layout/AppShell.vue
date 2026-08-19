@@ -16,10 +16,10 @@ const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
 
 const displayOwnerName = computed(() => {
-  const customName = storeSettings.settings.ownerName?.trim();
-  if (customName) return customName.toUpperCase();
   const supabaseName = auth.userMetadata?.fullName?.trim();
   if (supabaseName) return supabaseName.toUpperCase();
+  const customName = storeSettings.settings.ownerName?.trim();
+  if (customName) return customName.toUpperCase();
   return '-';
 });
 let syncTimer: number | undefined;

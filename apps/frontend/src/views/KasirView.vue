@@ -67,9 +67,12 @@ onMounted(() => {
   window.addEventListener('resize', handleResize);
 });
 
+let unsubscribeProducts: (() => void) | undefined;
+
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   document.body.style.overflow = '';
+  if (unsubscribeProducts) unsubscribeProducts();
 });
 
 function cardColor(p: Product): string {
@@ -81,6 +84,9 @@ async function loadProducts() {
 }
 
 onMounted(async () => {
+  unsubscribeProducts = sync.onProductsUpdated(() => {
+    loadProducts();
+  });
   if (navigator.onLine && (await db.products.count()) === 0) {
     const restored = await sync.restoreProductsFromServer();
     if (restored > 0) {

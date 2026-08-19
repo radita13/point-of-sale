@@ -104,11 +104,19 @@ watch([selectedCategory, globalFilter], () => {
   pagination.value.pageIndex = 0;
 });
 
+watch(filteredData, (newData) => {
+  const maxPageIndex = Math.max(0, Math.ceil(newData.length / pagination.value.pageSize) - 1);
+  if (pagination.value.pageIndex > maxPageIndex) {
+    pagination.value.pageIndex = maxPageIndex;
+  }
+});
+
 const columns = createProductColumns(openEdit, askDelete);
 
 const table = useVueTable({
   data: filteredData,
   columns,
+  autoResetPageIndex: false,
   state: {
     get sorting() {
       return sorting.value;
@@ -146,12 +154,12 @@ const table = useVueTable({
     >
       <div class="flex items-center gap-3">
         <div
-          class="border-ink bg-card-green shadow-hard-sm flex h-10 w-10 items-center justify-center rounded-xl border-2 text-white"
+          class="border-ink bg-card-green shadow-hard-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 text-white"
         >
           <Package class="h-5 w-5" />
         </div>
         <div>
-          <h2 class="text-lg font-extrabold">Manajemen Inventaris Sembako</h2>
+          <h2 class="text-lg font-extrabold">Manajemen Inventaris Toko</h2>
           <p class="text-xs font-semibold text-gray-600">
             Total Katalog: {{ products.length }} Barang (SKU)
           </p>
@@ -185,7 +193,7 @@ const table = useVueTable({
         </Button>
         <Button @click="openAdd" class="cursor-pointer text-xs">
           <Package class="h-4 w-4" />
-          Tambah Barang Baru
+          Tambah Produk
         </Button>
       </div>
     </div>
@@ -261,7 +269,7 @@ const table = useVueTable({
       <!-- Pagination controls -->
       <div
         v-if="table.getFilteredRowModel().rows.length > 0"
-        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-2 border-t-2 p-3 text-xs font-extrabold"
+        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-2 border-t-2 p-3 pr-16 text-xs font-extrabold sm:pr-3"
       >
         <div class="whitespace-nowrap text-gray-600">
           <span class="hidden sm:inline">Menampilkan </span>

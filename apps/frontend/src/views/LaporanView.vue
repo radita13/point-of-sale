@@ -74,12 +74,12 @@ onMounted(async () => {
     >
       <div class="flex items-center gap-3">
         <div
-          class="border-ink bg-brand shadow-hard-sm flex h-10 w-10 items-center justify-center rounded-xl border-2 text-white"
+          class="border-ink bg-brand shadow-hard-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 text-white"
         >
           <ChartLine class="h-5 w-5" />
         </div>
         <div>
-          <h2 class="text-lg font-extrabold">Laporan &amp; Rekapitulasi Penjualan</h2>
+          <h2 class="text-lg font-extrabold">Laporan Penjualan Toko</h2>
           <p class="text-xs font-semibold text-gray-600">
             Pantau omset, estimasi laba kotor, dan riwayat transaksi toko
           </p>
@@ -177,7 +177,7 @@ onMounted(async () => {
           <div
             v-for="(prod, idx) in productSalesSummary"
             :key="prod.name"
-            class="border-ink bg-canvas flex items-center justify-between rounded-xl border-2 p-2.5 text-xs font-bold"
+            class="border-ink bg-canvas shadow-hard-sm mb-2 flex items-center justify-between rounded-xl border-2 p-2.5 text-xs font-bold"
           >
             <div class="flex items-center gap-2.5">
               <span
@@ -252,7 +252,7 @@ onMounted(async () => {
                   }}</span>
                 </div>
                 <Badge :class="tx.isSynced ? 'bg-card-green text-white' : 'bg-offline text-ink'">
-                  {{ tx.isSynced ? 'SYNCED' : 'OFFLINE QUEUE' }}
+                  {{ tx.isSynced ? 'SYNCED' : 'OFFLINE' }}
                 </Badge>
               </div>
               <div class="flex items-center justify-between text-xs font-bold">

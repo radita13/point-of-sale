@@ -1,4 +1,4 @@
-import { ref, onMounted, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, reactive } from 'vue';
 import { toast } from 'vue-sonner';
 import type { Product } from '@point-of-sale/shared';
 import { productSyncSchema } from '@point-of-sale/shared';
@@ -63,7 +63,18 @@ export function useInventory() {
     await refresh();
   }
 
-  onMounted(refreshWithRestore);
+  let unsubscribe: (() => void) | undefined;
+
+  onMounted(() => {
+    refreshWithRestore();
+    unsubscribe = useSyncStore().onProductsUpdated(() => {
+      refresh();
+    });
+  });
+
+  onUnmounted(() => {
+    if (unsubscribe) unsubscribe();
+  });
 
   async function saveProduct() {
     clearErrors();

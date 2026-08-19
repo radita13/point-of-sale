@@ -48,10 +48,11 @@ async function request<T>(path: string, init: RequestInit & ApiOptions = {}): Pr
 }
 
 export const api = {
-  async getProducts(storeId: string, page?: number, limit?: number): Promise<Product[]> {
+  async getProducts(storeId: string, page?: number, limit?: number, since?: number): Promise<Product[]> {
     let url = `/products?storeId=${storeId}`;
     if (page !== undefined) url += `&page=${page}`;
     if (limit !== undefined) url += `&limit=${limit}`;
+    if (since !== undefined) url += `&since=${since}`;
     const res = await request<{ data: Product[] } | Product[]>(url);
     return Array.isArray(res) ? res : res.data;
   },

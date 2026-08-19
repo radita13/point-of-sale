@@ -13,6 +13,26 @@ export const useSyncStore = defineStore('sync', () => {
   const isSyncingInternal = ref(false);
   const lastSyncAt = ref<number | null>(null);
   const lastError = ref<string | null>(null);
+  const lastProductPullAt = ref<number | null>(null);
+  const productsUpdatedListeners: Array<() => void> = [];
+
+  function onProductsUpdated(cb: () => void) {
+    productsUpdatedListeners.push(cb);
+    return () => {
+      const idx = productsUpdatedListeners.indexOf(cb);
+      if (idx !== -1) productsUpdatedListeners.splice(idx, 1);
+    };
+  }
+
+  function notifyProductsUpdated() {
+    for (const listener of productsUpdatedListeners) {
+      try {
+        listener();
+      } catch (e) {
+        console.error('[sync] Error in productsUpdated listener:', e);
+      }
+    }
+  }
 
   const syncing = computed(() => isSyncingInternal.value);
   const pendingUnsynced = computed(() => pendingCount.value);
@@ -149,6 +169,66 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  async function pullProductsFromServer(): Promise<number> {
+    if (!navigator.onLine) return 0;
+    try {
+      const since = lastProductPullAt.value ?? undefined;
+      const startTime = Date.now();
+      const serverProducts = await api.getProducts(getStoreId(), undefined, undefined, since);
+      if (!serverProducts || serverProducts.length === 0) {
+        lastProductPullAt.value = startTime;
+        return 0;
+      }
+
+      const localProducts = await db.products.toArray();
+      const localMap = new Map(localProducts.map((p) => [p.id, p]));
+
+      const toPut: Product[] = [];
+      const toDeleteIds: string[] = [];
+
+      for (const sp of serverProducts) {
+        const local = localMap.get(sp.id);
+        if (local && local.isSynced === false) {
+          // Jangan timpa jika ada perubahan lokal yang belum tersimpan ke server
+          continue;
+        }
+
+        if (sp.isDeleted) {
+          if (local) toDeleteIds.push(sp.id);
+        } else {
+          toPut.push({
+            ...sp,
+            stock: Number(sp.stock),
+            minStock: Number(sp.minStock),
+            step: sp.step != null ? Number(sp.step) : undefined,
+            costPrice: Number(sp.costPrice),
+            sellingPrice: Number(sp.sellingPrice),
+            smallPrice: sp.smallPrice != null ? Number(sp.smallPrice) : undefined,
+            isSynced: true,
+          });
+        }
+      }
+
+      if (toDeleteIds.length > 0) {
+        await db.products.bulkDelete(toDeleteIds);
+      }
+      if (toPut.length > 0) {
+        await db.products.bulkPut(toPut);
+      }
+
+      lastProductPullAt.value = startTime;
+
+      if (toPut.length > 0 || toDeleteIds.length > 0) {
+        notifyProductsUpdated();
+      }
+
+      return toPut.length + toDeleteIds.length;
+    } catch (err) {
+      console.warn('[sync] Incremental product pull failed:', err);
+      return 0;
+    }
+  }
+
   async function runSync() {
     if (!navigator.onLine) return;
     let more = true;
@@ -165,6 +245,7 @@ export const useSyncStore = defineStore('sync', () => {
       more = pendingCount.value > 0;
       if (more) await new Promise((r) => setTimeout(r, 250));
     }
+    await pullProductsFromServer();
     notifyLastError();
     await notifyLowStock();
   }
@@ -292,6 +373,8 @@ export const useSyncStore = defineStore('sync', () => {
     lastSyncAt,
     lastError,
     pendingUnsynced,
+    onProductsUpdated,
+    pullProductsFromServer,
     refreshCount,
     syncProductsBatch,
     syncBatch,

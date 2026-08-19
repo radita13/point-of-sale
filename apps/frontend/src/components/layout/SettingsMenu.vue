@@ -29,8 +29,8 @@ const profileForm = ref({ ...storeSettings.settings });
 function openProfileModal() {
   profileForm.value = {
     ...storeSettings.settings,
-    ownerName: storeSettings.settings.ownerName || auth.userMetadata?.fullName || '',
-    phone: storeSettings.settings.phone || auth.userMetadata?.phone || '',
+    ownerName: auth.userMetadata?.fullName || storeSettings.settings.ownerName || '',
+    phone: auth.userMetadata?.phone || storeSettings.settings.phone || '',
   };
   showProfileModal.value = true;
   open.value = false;

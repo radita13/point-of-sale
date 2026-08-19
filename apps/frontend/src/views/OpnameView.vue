@@ -144,23 +144,23 @@ void sync;
     >
       <div class="flex items-center gap-3">
         <div
-          class="border-ink bg-offline shadow-hard-sm flex h-10 w-10 items-center justify-center rounded-xl border-2 text-white"
+          class="border-ink bg-offline shadow-hard-sm flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 text-white"
         >
           <ClipboardCheck class="h-5 w-5" />
         </div>
         <div>
-          <h2 class="text-lg font-extrabold">Stock Opname & Koreksi Fisik Rak</h2>
+          <h2 class="text-lg font-extrabold">Manajemen Stok Toko</h2>
           <p class="text-xs font-semibold text-gray-600">
             Sesuaikan jumlah stok sistem dengan stok riil di toko.
           </p>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Badge v-if="changedCount > 0" class="bg-brand text-white border-ink">
+        <Badge v-if="changedCount > 0" class="bg-brand border-ink text-white">
           {{ changedCount }} Koreksi Siap Disimpan
         </Badge>
-        <Button variant="primary" @click="saveOpname" class="cursor-pointer">
-          <Save class="h-4 w-4" /> Simpan Stok Baru
+        <Button variant="primary" @click="saveOpname" class="cursor-pointer text-xs">
+          <Save class="h-4 w-4" /> Simpan Stok
         </Button>
       </div>
     </div>
@@ -196,7 +196,7 @@ void sync;
     </Card>
 
     <!-- Konten Utama Product Grid & Pagination -->
-    <Card class="p-4 space-y-4">
+    <Card class="space-y-4 p-4">
       <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
         <div
           v-for="p in paginatedProducts"
@@ -216,12 +216,14 @@ void sync;
                 :class="
                   getStockDiff(p)! > 0 ? 'bg-card-green text-white' : 'bg-card-coral text-white'
                 "
-                class="rounded-md px-1.5 py-0.5 font-mono text-[9px] font-black shrink-0"
+                class="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] font-black"
               >
                 {{ getStockDiff(p)! > 0 ? `+${getStockDiff(p)}` : getStockDiff(p) }} {{ p.unit }}
               </span>
             </div>
-            <p class="text-[10px] font-bold text-gray-600">Stok Sistem: {{ formatQty(p.stock) }} {{ p.unit }}</p>
+            <p class="text-[10px] font-bold text-gray-600">
+              Stok Sistem: {{ formatQty(p.stock) }} {{ p.unit }}
+            </p>
           </div>
           <div class="flex shrink-0 items-center gap-1">
             <input
@@ -248,12 +250,16 @@ void sync;
       <!-- Pagination Controls -->
       <div
         v-if="filteredProducts.length > 0"
-        class="flex flex-wrap items-center justify-between gap-2 border-t-2 border-ink pt-3 text-xs font-extrabold"
+        class="border-ink flex flex-wrap items-center justify-between gap-2 border-t-2 pt-3 pr-12 text-xs font-extrabold sm:pr-0"
       >
-        <div class="text-gray-600 whitespace-nowrap">
+        <div class="whitespace-nowrap text-gray-600">
           <span class="hidden sm:inline">Menampilkan </span>
-          <span>{{ (currentPage - 1) * pageSize + 1 }}-{{ Math.min(currentPage * pageSize, filteredProducts.length) }}</span>
-          <span class="text-gray-400 font-normal"> / </span>
+          <span
+            >{{ (currentPage - 1) * pageSize + 1 }}-{{
+              Math.min(currentPage * pageSize, filteredProducts.length)
+            }}</span
+          >
+          <span class="font-normal text-gray-400"> / </span>
           <span>{{ filteredProducts.length }}</span>
           <span class="hidden sm:inline"> barang</span>
         </div>
@@ -263,7 +269,7 @@ void sync;
             <select
               :value="pageSize"
               @change="(e: Event) => (pageSize = Number((e.target as HTMLSelectElement).value))"
-              class="border-ink bg-white rounded-lg border-2 px-1.5 py-1 text-xs font-extrabold focus:outline-none"
+              class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
               title="Jumlah item per halaman"
             >
               <option :value="12">12</option>
@@ -282,7 +288,9 @@ void sync;
             >
               <ChevronLeft class="h-4 w-4" />
             </Button>
-            <span class="px-1 text-[11px] whitespace-nowrap"> {{ currentPage }}/{{ totalPages }} </span>
+            <span class="px-1 text-[11px] whitespace-nowrap">
+              {{ currentPage }}/{{ totalPages }}
+            </span>
             <Button
               variant="secondary"
               size="icon"
