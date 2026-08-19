@@ -29,7 +29,15 @@ export async function getProducts(req: any, res: any): Promise<void> {
       : 10;
 
   try {
-    const where = { storeId, isDeleted: false };
+    const sinceParam = req.query.since ? parseInt(String(req.query.since), 10) : undefined;
+    const sinceDate = sinceParam && !isNaN(sinceParam) ? new Date(sinceParam) : undefined;
+
+    const where: any = { storeId };
+    if (sinceDate) {
+      where.updatedAt = { gte: sinceDate };
+    } else {
+      where.isDeleted = false;
+    }
 
     if (page !== undefined) {
       const [total, products] = await Promise.all([
