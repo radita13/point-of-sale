@@ -45,10 +45,6 @@ function hasChange(id: string): boolean {
   return !Number.isNaN(num) && prod !== undefined && num !== prod.stock;
 }
 
-const changedCount = computed(() => {
-  return products.value.filter((p) => hasChange(p.id)).length;
-});
-
 const filteredProducts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   return products.value.filter((p) => {
@@ -156,9 +152,6 @@ void sync;
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <Badge v-if="changedCount > 0" class="bg-brand border-ink text-white">
-          {{ changedCount }} Koreksi Siap Disimpan
-        </Badge>
         <Button variant="primary" @click="saveOpname" class="cursor-pointer text-xs">
           <Save class="h-4 w-4" /> Simpan Stok
         </Button>
@@ -195,111 +188,124 @@ void sync;
       </div>
     </Card>
 
-    <!-- Konten Utama Product Grid & Pagination -->
-    <Card class="space-y-4 p-4">
-      <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        <div
-          v-for="p in paginatedProducts"
-          :key="p.id"
-          :class="
-            hasChange(p.id)
-              ? 'border-brand bg-brand/5 shadow-hard-md'
-              : 'border-ink bg-canvas shadow-hard-sm'
-          "
-          class="flex items-center justify-between gap-3 rounded-xl border-2 p-3 transition-all"
-        >
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
-              <h4 class="truncate text-xs font-extrabold">{{ p.name }}</h4>
-              <span
-                v-if="getStockDiff(p) !== null"
-                :class="
-                  getStockDiff(p)! > 0 ? 'bg-card-green text-white' : 'bg-card-coral text-white'
-                "
-                class="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] font-black"
-              >
-                {{ getStockDiff(p)! > 0 ? `+${getStockDiff(p)}` : getStockDiff(p) }} {{ p.unit }}
-              </span>
-            </div>
-            <p class="text-[10px] font-bold text-gray-600">
-              Stok Sistem: {{ formatQty(p.stock) }} {{ p.unit }}
-            </p>
-          </div>
-          <div class="flex shrink-0 items-center gap-1">
-            <input
-              type="number"
-              step="0.1"
-              :placeholder="formatQty(p.stock)"
-              :value="changes[p.id] ?? ''"
-              @input="(e) => (changes[p.id] = (e.target as HTMLInputElement).value)"
-              class="border-ink focus:ring-brand w-16 rounded-md border bg-white py-1 text-center text-xs font-bold focus:ring-2 focus:outline-none"
-              :class="{ 'border-brand ring-brand text-brand font-black ring-2': hasChange(p.id) }"
-            />
-            <span class="text-[10px] font-bold">{{ p.unit }}</span>
-          </div>
-        </div>
-
-        <div
-          v-if="paginatedProducts.length === 0"
-          class="col-span-full py-8 text-center text-xs font-semibold text-gray-500"
-        >
-          Tidak ada barang yang cocok dengan pencarian / filter.
-        </div>
+    <!-- Tabel Opname Grid/Card -->
+    <Card class="p-4">
+      <div
+        v-if="paginatedProducts.length === 0"
+        class="py-12 text-center text-xs font-bold text-gray-500"
+      >
+        Tidak ada produk ditemukan.
       </div>
 
-      <!-- Pagination Controls -->
-      <div
-        v-if="filteredProducts.length > 0"
-        class="border-ink flex flex-wrap items-center justify-between gap-2 border-t-2 pt-3 pr-12 text-xs font-extrabold sm:pr-0"
-      >
-        <div class="whitespace-nowrap text-gray-600">
-          <span class="hidden sm:inline">Menampilkan </span>
-          <span
-            >{{ (currentPage - 1) * pageSize + 1 }}-{{
-              Math.min(currentPage * pageSize, filteredProducts.length)
-            }}</span
+      <div v-else class="space-y-3">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            v-for="p in paginatedProducts"
+            :key="p.id"
+            :class="
+              hasChange(p.id)
+                ? 'border-card-coral shadow-hard-md bg-red-50/50'
+                : 'border-ink bg-canvas'
+            "
+            class="relative flex flex-col justify-between rounded-xl border-2 p-3 transition-all"
           >
-          <span class="font-normal text-gray-400"> / </span>
-          <span>{{ filteredProducts.length }}</span>
-          <span class="hidden sm:inline"> barang</span>
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-[10px] font-black tracking-wider text-gray-500 uppercase">{{
+                  p.category
+                }}</span>
+                <Badge v-if="p.stock === 0" class="bg-card-coral text-white">Habis</Badge>
+                <Badge v-else-if="p.stock <= p.minStock" class="bg-card-yellow text-white"
+                  >Stok Menipis</Badge
+                >
+                <Badge v-else class="bg-card-green text-white">Aman</Badge>
+              </div>
+
+              <h4 class="text-ink mt-1 leading-tight font-extrabold">{{ p.name }}</h4>
+              <p class="font-mono text-[10px] text-gray-500">SKU: {{ p.sku }}</p>
+            </div>
+
+            <div class="border-ink/20 mt-3 border-t pt-2">
+              <div class="flex items-center justify-between gap-2">
+                <label class="text-[11px] font-extrabold text-gray-700">Stok Fisik Baru:</label>
+                <div class="flex items-center gap-1.5">
+                  <Input
+                    :value="changes[p.id] ?? ''"
+                    @input="(e: Event) => (changes[p.id] = (e.target as HTMLInputElement).value)"
+                    type="number"
+                    step="any"
+                    min="0"
+                    :placeholder="formatQty(p.stock)"
+                    class="h-8 w-24 text-right text-xs font-black"
+                  />
+                  <span class="text-[11px] font-bold text-gray-600">{{ p.unit }}</span>
+                </div>
+              </div>
+
+              <!-- Diff Badge -->
+              <div
+                v-if="getStockDiff(p) !== null"
+                class="mt-1.5 flex items-center justify-end text-[11px] font-black"
+              >
+                <span :class="getStockDiff(p)! > 0 ? 'text-green-600' : 'text-red-600'">
+                  Selisih: {{ getStockDiff(p)! > 0 ? '+' : '' }}{{ getStockDiff(p) }} {{ p.unit }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <div class="flex items-center gap-1">
-            <select
-              :value="pageSize"
-              @change="(e: Event) => (pageSize = Number((e.target as HTMLSelectElement).value))"
-              class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
-              title="Jumlah item per halaman"
+        <!-- Pagination Footer -->
+        <div
+          class="border-ink flex items-center justify-between border-t-2 pt-3 pr-14 text-xs font-bold sm:pr-0"
+        >
+          <div class="whitespace-nowrap text-gray-600">
+            <span class="hidden sm:inline">Menampilkan </span>
+            <span
+              >{{ (currentPage - 1) * pageSize + 1 }}-{{
+                Math.min(currentPage * pageSize, filteredProducts.length)
+              }}</span
             >
-              <option :value="12">12</option>
-              <option :value="24">24</option>
-              <option :value="48">48</option>
-            </select>
+            <span class="font-normal text-gray-400"> / </span>
+            <span>{{ filteredProducts.length }}</span>
+            <span class="hidden sm:inline"> barang</span>
           </div>
 
-          <div class="flex items-center gap-1">
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="currentPage <= 1"
-              @click="currentPage--"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronLeft class="h-4 w-4" />
-            </Button>
-            <span class="px-1 text-[11px] whitespace-nowrap">
-              {{ currentPage }}/{{ totalPages }}
-            </span>
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="currentPage >= totalPages"
-              @click="currentPage++"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronRight class="h-4 w-4" />
-            </Button>
+          <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1">
+              <select
+                :value="pageSize"
+                @change="(e: Event) => (pageSize = Number((e.target as HTMLSelectElement).value))"
+                class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
+              >
+                <option :value="6">6</option>
+                <option :value="12">12</option>
+                <option :value="24">24</option>
+                <option :value="48">48</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <Button
+                variant="secondary"
+                size="icon"
+                :disabled="currentPage <= 1"
+                @click="currentPage--"
+              >
+                <ChevronLeft class="h-4 w-4" />
+              </Button>
+              <span class="px-1 text-[11px] whitespace-nowrap"
+                >{{ currentPage }} / {{ totalPages }}</span
+              >
+              <Button
+                variant="secondary"
+                size="icon"
+                :disabled="currentPage >= totalPages"
+                @click="currentPage++"
+              >
+                <ChevronRight class="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

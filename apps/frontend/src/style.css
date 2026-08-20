@@ -38,18 +38,26 @@
   .neo-press {
     @apply transition-transform duration-[50ms] ease-out active:translate-x-0.5 active:translate-y-0.5 active:shadow-none;
   }
-  /* Scrollbar neo */
+  /* Scrollbar neo-brutalism */
+  .neo-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink) var(--color-canvas);
+  }
   .neo-scroll::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   .neo-scroll::-webkit-scrollbar-track {
     background: var(--color-canvas);
-    border-left: 2px solid var(--color-ink);
+    border: 2px solid var(--color-ink);
+    border-radius: 6px;
   }
   .neo-scroll::-webkit-scrollbar-thumb {
     background: var(--color-ink);
     border-radius: 4px;
+  }
+  .neo-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand);
   }
 }
 

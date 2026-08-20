@@ -274,7 +274,11 @@ async function connectPrinter() {
 }
 
 function normalizeCode(str: string): string {
-  return str.trim().toLowerCase().replace(/^0+/, '').replace(/[^a-z0-9]/g, '');
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/^0+/, '')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 function handleBarcodeScanned(skuText: string) {
@@ -371,9 +375,10 @@ function handleBarcodeScanned(skuText: string) {
         >
           <Badge
             v-if="p.stock <= p.minStock"
-            class="bg-card-coral shadow-hard-sm absolute -top-2 -right-2 z-10 text-white"
+            :class="p.stock === 0 ? 'bg-card-coral' : 'bg-card-yellow'"
+            class="shadow-hard-sm absolute -top-2 -right-2 z-10 text-white"
           >
-            Stok {{ p.stock <= 0 ? 'HABIS' : 'Menipis' }}
+            Stok {{ p.stock === 0 ? 'Habis' : 'Menipis' }}
           </Badge>
 
           <div>
@@ -463,9 +468,7 @@ function handleBarcodeScanned(skuText: string) {
         >
           <ShoppingCart class="text-ink/20 mx-auto mb-2 h-10 w-10" />
           <p class="text-ink text-sm font-bold">Keranjang masih kosong</p>
-          <p class="text-ink/50 mt-0.5 text-xs">
-            Pilih produk sembako dari katalog produk.
-          </p>
+          <p class="text-ink/50 mt-0.5 text-xs">Pilih produk sembako dari katalog produk.</p>
         </div>
 
         <div v-else class="neo-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1 pb-2">
@@ -693,12 +696,13 @@ function handleBarcodeScanned(skuText: string) {
           >
             <ShoppingCart class="text-ink/20 mx-auto mb-2 h-10 w-10" />
             <p class="text-ink text-sm font-bold">Keranjang masih kosong</p>
-            <p class="text-ink/50 mt-0.5 text-xs">
-              Pilih produk sembako dari katalog produk.
-            </p>
+            <p class="text-ink/50 mt-0.5 text-xs">Pilih produk sembako dari katalog produk.</p>
           </div>
 
-          <div v-else class="neo-scroll max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2">
+          <div
+            v-else
+            class="neo-scroll max-h-60 space-y-2 overflow-y-auto overscroll-contain pr-1 pb-2"
+          >
             <div
               v-for="it in cart.items"
               :key="it.product.id"
@@ -929,18 +933,17 @@ function handleBarcodeScanned(skuText: string) {
         </div>
 
         <div class="grid grid-cols-2 gap-2 font-sans">
-          <button
+          <Button
             @click="showReceipt = false"
-            class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
+            class="cursor-pointer"
+            variant="secondary"
+            size="icon"
           >
             Tutup
-          </button>
-          <button
-            @click="printNow"
-            class="neo-press border-ink bg-brand shadow-hard-sm flex items-center justify-center gap-1 rounded-xl border-2 py-2 text-xs font-extrabold text-white"
-          >
+          </Button>
+          <Button @click="printNow" variant="primary" class="cursor-pointer" size="icon">
             <ReceiptText class="h-3.5 w-3.5" /> Cetak Sekarang
-          </button>
+          </Button>
         </div>
       </div>
     </div>

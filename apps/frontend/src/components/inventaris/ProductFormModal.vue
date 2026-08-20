@@ -42,7 +42,7 @@ function handleFileChange(event: Event) {
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
   >
     <div
-      class="border-ink bg-surface shadow-hard-xl max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border-2 p-5 sm:p-6"
+      class="neo-scroll border-ink bg-surface shadow-hard-xl max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border-2 p-5 sm:p-6"
     >
       <div class="border-ink mb-4 flex items-center justify-between border-b-2 pb-3">
         <h3 class="text-base font-extrabold">

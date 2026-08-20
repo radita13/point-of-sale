@@ -60,22 +60,40 @@ export function createProductColumns(
       header: 'Stok',
       cell: (info) => h('span', { class: 'font-extrabold' }, info.getValue()),
     }),
-    columnHelper.accessor((row) => row.stock <= row.minStock, {
-      id: 'status',
-      header: 'Status',
-      cell: (info) => {
-        const isLow = info.getValue();
-        return h(
-          'span',
-          {
-            class: `inline-block rounded-md border border-ink px-2 py-0.5 text-[10px] font-extrabold ${
-              isLow ? 'bg-card-coral text-white' : 'bg-card-green text-white'
-            }`,
-          },
-          isLow ? 'STOK MENIPIS' : 'AMAN'
-        );
+    columnHelper.accessor(
+      (row) => {
+        if (row.stock === 0) return 'empty';
+        if (row.stock <= row.minStock) return 'low';
+        return 'ok';
       },
-    }),
+      {
+        id: 'status',
+        header: 'Status',
+        cell: (info) => {
+          const status = info.getValue();
+          let badgeStatus = 'bg-card-green text-white';
+          let label = 'Aman';
+
+          if (status === 'empty') {
+            badgeStatus = 'bg-card-coral text-white';
+            label = 'Habis';
+          } else if (status === 'low') {
+            badgeStatus = 'bg-card-yellow text-white';
+            label = 'Stock Menipis';
+          }
+
+          return h(
+            'span',
+            {
+              class: `inline-block rounded-md border border-ink px-2 uppercase py-0.5 text-[10px] font-extrabold ${
+                badgeStatus
+              }`,
+            },
+            label
+          );
+        },
+      }
+    ),
     columnHelper.display({
       id: 'actions',
       header: () => h('div', { class: 'text-center' }, 'Aksi'),

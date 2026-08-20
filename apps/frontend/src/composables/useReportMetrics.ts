@@ -7,12 +7,15 @@ export function useReportMetrics(
   transactions: Ref<Transaction[]>,
   products: Ref<Product[]>,
   reportFilter: Ref<ReportFilter>,
-  pageSize = 10
+  pageSize = 10,
+  topProductsPageSize = 5
 ) {
   const currentPage = ref(1);
+  const topProductsPage = ref(1);
 
   watch(reportFilter, () => {
     currentPage.value = 1;
+    topProductsPage.value = 1;
   });
 
   function inPeriod(ts: number): boolean {
@@ -48,7 +51,9 @@ export function useReportMetrics(
   });
 
   function itemCost(item: TransactionItem): number {
-    if (typeof item.costPrice === 'number') return item.costPrice;
+    if (typeof item.costPrice === 'number' && item.costPrice > 0) {
+      return item.costPrice;
+    }
     return costByProduct.value.get(item.productId) ?? 0;
   }
 
@@ -76,7 +81,8 @@ export function useReportMetrics(
     >();
     for (const tx of filteredTransactions.value) {
       for (const it of tx.items) {
-        const cur = map.get(it.productId) ?? {
+        const key = (it.sku?.trim() || it.productName).toLowerCase().trim();
+        const cur = map.get(key) ?? {
           name: it.productName,
           totalQty: 0,
           totalSales: 0,
@@ -86,21 +92,31 @@ export function useReportMetrics(
         const cost = itemCost(it);
         cur.totalQty += it.qty;
         cur.totalSales += it.subtotal;
-        cur.totalProfit += it.subtotal - (cost * it.qty);
-        map.set(it.productId, cur);
+        cur.totalProfit += it.subtotal - cost * it.qty;
+        map.set(key, cur);
       }
     }
-    return Array.from(map.values())
-      .sort((a, b) => b.totalSales - a.totalSales)
-      .slice(0, 5);
+    return Array.from(map.values()).sort((a, b) => b.totalSales - a.totalSales);
+  });
+
+  const totalTopProductsPages = computed(
+    () => Math.ceil(productSalesSummary.value.length / topProductsPageSize) || 1
+  );
+
+  const paginatedTopProducts = computed(() => {
+    const start = (topProductsPage.value - 1) * topProductsPageSize;
+    return productSalesSummary.value.slice(start, start + topProductsPageSize);
   });
 
   return {
     currentPage,
     totalPages,
+    topProductsPage,
+    totalTopProductsPages,
     filteredTransactions,
     paginatedTransactions,
     reportMetrics,
     productSalesSummary,
+    paginatedTopProducts,
   };
 }

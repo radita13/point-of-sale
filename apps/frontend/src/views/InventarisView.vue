@@ -246,8 +246,8 @@ const table = useVueTable({
                   :render="header.column.columnDef.header"
                   :props="header.getContext()"
                 />
-                <span v-if="header.column.getIsSorted() === 'asc'"> 🔼</span>
-                <span v-else-if="header.column.getIsSorted() === 'desc'"> 🔽</span>
+                <span v-if="header.column.getIsSorted() === 'asc'"> </span>
+                <span v-else-if="header.column.getIsSorted() === 'desc'"> </span>
               </th>
             </tr>
           </thead>

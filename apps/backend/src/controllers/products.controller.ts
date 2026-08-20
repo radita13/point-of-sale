@@ -172,11 +172,24 @@ export async function syncProducts(req: any, res: any): Promise<void> {
       isDeleted: p.isDeleted ?? false,
       storeId,
     };
-    await prisma.product.upsert({
+    const updatedProduct = await prisma.product.upsert({
       where: { serverId: p.id },
       update: data,
       create: { serverId: p.id, ...data },
     });
+
+    if (p.costPrice && Number(p.costPrice) > 0) {
+      await prisma.transactionItem.updateMany({
+        where: {
+          productId: updatedProduct.id,
+          OR: [{ costPrice: 0 }, { costPrice: null }],
+        },
+        data: {
+          costPrice: p.costPrice,
+        },
+      });
+    }
+
     synced.push({ id: p.id, image });
   }
 
