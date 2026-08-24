@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
-import { ClipboardCheck, Save, Search, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import {
+  ClipboardCheck,
+  Save,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  Plus,
+} from 'lucide-vue-next';
 import type { InventoryAdjustment, Product } from '@point-of-sale/shared';
 import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { formatQty, makeUuid } from '@/lib/utils';
 import Card from '@/components/ui/Card.vue';
-import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
 import Badge from '@/components/ui/Badge.vue';
 import { api } from '@/services/api';
 import { useSyncStore } from '@/stores/sync';
+import Button from '@/components/ui/Button.vue';
 
 const sync = useSyncStore();
 const products = ref<Product[]>([]);
@@ -21,6 +29,9 @@ const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const currentPage = ref(1);
 const pageSize = ref(12);
+const scrollEl = ref<HTMLDivElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
 
 const CATEGORIES = [
   'Semua',
@@ -35,15 +46,24 @@ const CATEGORIES = [
 async function refresh() {
   products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
 }
-onMounted(refresh);
 
-function hasChange(id: string): boolean {
-  const raw = changes.value[id]?.trim();
-  if (raw === undefined || raw === '') return false;
-  const num = Number(raw);
-  const prod = products.value.find((p) => p.id === id);
-  return !Number.isNaN(num) && prod !== undefined && num !== prod.stock;
+function updateScrollState() {
+  const el = scrollEl.value;
+  if (!el) return;
+  const { scrollLeft, scrollWidth, clientWidth } = el;
+  canScrollLeft.value = scrollLeft > 1;
+  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
 }
+
+onMounted(() => {
+  refresh();
+  updateScrollState();
+  window.addEventListener('resize', updateScrollState);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScrollState);
+});
 
 const filteredProducts = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
@@ -73,6 +93,14 @@ function getStockDiff(p: Product): number | null {
   const num = Number(raw);
   if (Number.isNaN(num) || num === p.stock) return null;
   return Math.round((num - p.stock) * 100) / 100;
+}
+
+function adjustStock(p: Product, delta: number) {
+  const raw = changes.value[p.id]?.trim();
+  const current =
+    raw !== undefined && raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : p.stock;
+  const next = Math.max(0, Math.round((current + delta) * 100) / 100);
+  changes.value[p.id] = String(next);
 }
 
 async function saveOpname() {
@@ -170,20 +198,36 @@ void sync;
             class="pl-11"
           />
         </div>
-        <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            v-for="cat in CATEGORIES"
-            :key="cat"
-            @click="selectedCategory = cat"
-            :class="
-              selectedCategory === cat
-                ? 'bg-ink text-white'
-                : 'bg-canvas text-ink hover:bg-gray-200'
-            "
-            class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
+        <div class="relative overflow-hidden rounded-xl">
+          <div
+            v-if="canScrollLeft"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+          ></div>
+
+          <div
+            ref="scrollEl"
+            @scroll="updateScrollState"
+            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {{ cat }}
-          </button>
+            <button
+              v-for="cat in CATEGORIES"
+              :key="cat"
+              @click="selectedCategory = cat"
+              :class="
+                selectedCategory === cat
+                  ? 'bg-ink text-white'
+                  : 'bg-canvas text-ink hover:bg-gray-200'
+              "
+              class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
+            >
+              {{ cat }}
+            </button>
+          </div>
+
+          <div
+            v-if="canScrollRight"
+            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+          ></div>
         </div>
       </div>
     </Card>
@@ -203,9 +247,11 @@ void sync;
             v-for="p in paginatedProducts"
             :key="p.id"
             :class="
-              hasChange(p.id)
-                ? 'border-card-coral shadow-hard-md bg-red-50/50'
-                : 'border-ink bg-canvas'
+              getStockDiff(p) === null
+                ? 'border-ink bg-canvas'
+                : getStockDiff(p)! > 0
+                  ? 'border-card-green shadow-hard-md bg-green-50/50'
+                  : 'border-card-coral shadow-hard-md bg-red-50/50'
             "
             class="relative flex flex-col justify-between rounded-xl border-2 p-3 transition-all"
           >
@@ -228,7 +274,27 @@ void sync;
             <div class="border-ink/20 mt-3 border-t pt-2">
               <div class="flex items-center justify-between gap-2">
                 <label class="text-[11px] font-extrabold text-gray-700">Stok Fisik Baru:</label>
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-3">
+                  <div class="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      class="shrink-0"
+                      @click="adjustStock(p, -1)"
+                    >
+                      <Minus class="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      class="shrink-0"
+                      @click="adjustStock(p, 1)"
+                    >
+                      <Plus class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
                   <Input
                     :value="changes[p.id] ?? ''"
                     @input="(e: Event) => (changes[p.id] = (e.target as HTMLInputElement).value)"
@@ -236,7 +302,7 @@ void sync;
                     step="any"
                     min="0"
                     :placeholder="formatQty(p.stock)"
-                    class="h-8 w-24 text-right text-xs font-black"
+                    class="h-8 w-16 rounded-xl text-right text-xs font-black"
                   />
                   <span class="text-[11px] font-bold text-gray-600">{{ p.unit }}</span>
                 </div>

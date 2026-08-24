@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   Package,
@@ -53,15 +53,6 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const isImporting = ref(false);
 const route = useRoute();
 
-onMounted(() => {
-  const addSku = route.query.addSku as string | undefined;
-  if (addSku) {
-    openAdd();
-    form.sku = addSku.trim();
-    toast.info(`Form barang baru dibuka dengan SKU: ${form.sku}`);
-  }
-});
-
 async function onCsvFileSelect(e: Event) {
   const input = e.target as HTMLInputElement;
   const file = input.files?.[0];
@@ -91,8 +82,34 @@ const pagination = ref<PaginationState>({
   pageIndex: 0,
   pageSize: 10,
 });
-
 const selectedCategory = ref('Semua');
+
+const scrollEl = ref<HTMLDivElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+function updateScrollState() {
+  const el = scrollEl.value;
+  if (!el) return;
+  const { scrollLeft, scrollWidth, clientWidth } = el;
+  canScrollLeft.value = scrollLeft > 1;
+  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+}
+
+onMounted(() => {
+  const addSku = route.query.addSku as string | undefined;
+  if (addSku) {
+    openAdd();
+    form.sku = addSku.trim();
+    toast.info(`Form barang baru dibuka dengan SKU: ${form.sku}`);
+  }
+  updateScrollState();
+  window.addEventListener('resize', updateScrollState);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScrollState);
+});
 const filteredData = computed(() => {
   if (selectedCategory.value === 'Semua') {
     return products.value;
@@ -209,20 +226,36 @@ const table = useVueTable({
             class="border-ink bg-canvas text-ink focus:ring-brand h-11 w-full rounded-xl border-2 pr-4 pl-11 text-sm font-bold focus:ring-2 focus:outline-none"
           />
         </div>
-        <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            v-for="cat in ['Semua', ...CATEGORIES]"
-            :key="cat"
-            @click="selectedCategory = cat"
-            :class="
-              selectedCategory === cat
-                ? 'bg-ink text-white'
-                : 'bg-canvas text-ink hover:bg-gray-200'
-            "
-            class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
+        <div class="relative overflow-hidden rounded-xl">
+          <div
+            v-if="canScrollLeft"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+          ></div>
+
+          <div
+            ref="scrollEl"
+            @scroll="updateScrollState"
+            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {{ cat }}
-          </button>
+            <button
+              v-for="cat in ['Semua', ...CATEGORIES]"
+              :key="cat"
+              @click="selectedCategory = cat"
+              :class="
+                selectedCategory === cat
+                  ? 'bg-ink text-white'
+                  : 'bg-canvas text-ink hover:bg-gray-200'
+              "
+              class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
+            >
+              {{ cat }}
+            </button>
+          </div>
+
+          <div
+            v-if="canScrollRight"
+            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+          ></div>
         </div>
       </div>
     </Card>

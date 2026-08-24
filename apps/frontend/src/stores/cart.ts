@@ -5,7 +5,6 @@ import type { Product } from '@point-of-sale/shared';
 export interface CartItem {
   product: Product;
   qty: number;
-  /** true = kasir input dalam satuan kecil (bat); false = satuan besar (pak). Default false. */
   pieceMode?: boolean;
 }
 
@@ -17,12 +16,10 @@ export function round6(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
 
-/** Batasi qty ke stok produk (cegah oversell di UI) dan minimal 0. */
 function clampQty(qty: number, stock: number): number {
   return round6(Math.min(Math.max(0, qty), Math.max(0, stock)));
 }
 
-/** Sub-total sebaris: tier produk dipecah utuh(unit) + sisa (unit kecil / spesifik). */
 export function lineSubtotal(p: Product, qty: number): number {
   const packPrice = p.sellingPrice;
   const ppu = p.piecesPerUnit && p.piecesPerUnit > 1 ? p.piecesPerUnit : 1;
@@ -34,7 +31,6 @@ export function lineSubtotal(p: Product, qty: number): number {
   return round2(fullPacks * packPrice + rem * piecePrice);
 }
 
-/** Jumlah & tampilan tier: pecahan qty (dalam satuan besar) jadi bilangan bulat kecil. */
 export function splitPieces(p: Product, qty: number): { packs: number; pieces: number } {
   const ppu = p.piecesPerUnit && p.piecesPerUnit > 1 ? p.piecesPerUnit : 1;
   if (ppu === 1) return { packs: round6(qty), pieces: 0 };
@@ -42,8 +38,7 @@ export function splitPieces(p: Product, qty: number): { packs: number; pieces: n
   return { packs: Math.floor(sticks / ppu), pieces: sticks - Math.floor(sticks / ppu) * ppu };
 }
 
-/** Format qty untuk tampilan di keranjang: pieceMode → tampilkan "X pak + Y bat". */
-export function fmtQty(it: { product: Product; qty: number; pieceMode?: boolean }, _unused?: boolean): string {
+export function fmtQty(it: { product: Product; qty: number; pieceMode?: boolean }): string {
   const p = it.product;
   const isPiecesLocal = !!p.piecesPerUnit && p.piecesPerUnit > 1;
   if (isPiecesLocal) {

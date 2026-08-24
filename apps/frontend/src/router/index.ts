@@ -42,7 +42,6 @@ const router = createRouter({
         },
       ],
     },
-    // Halaman Sync terpisah dari layout utama (diakses dari menu Pengaturan).
     {
       path: "/sync",
       name: "sync",

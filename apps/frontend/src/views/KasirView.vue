@@ -45,6 +45,26 @@ const displayPhone = computed(() => {
 const products = ref<Product[]>([]);
 const searchQuery = ref('');
 const selectedCategory = ref('Semua');
+const scrollEl = ref<HTMLDivElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+function updateScrollState() {
+  const el = scrollEl.value;
+  if (!el) return;
+  const { scrollLeft, scrollWidth, clientWidth } = el;
+  canScrollLeft.value = scrollLeft > 1;
+  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+}
+
+onMounted(() => {
+  updateScrollState();
+  window.addEventListener('resize', updateScrollState);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateScrollState);
+});
 const showMobileCart = ref(false);
 const showScannerModal = ref(false);
 
@@ -345,16 +365,32 @@ function handleBarcodeScanned(skuText: string) {
           </button>
         </div>
 
-        <div class="neo-scroll flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            v-for="cat in CATEGORIES"
-            :key="cat"
-            @click="selectedCategory = cat"
-            :class="selectedCategory === cat ? 'bg-ink text-white' : 'bg-canvas text-ink'"
-            class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1 text-[11px] font-extrabold whitespace-nowrap"
+        <div class="relative overflow-hidden rounded-xl">
+          <div
+            v-if="canScrollLeft"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+          ></div>
+
+          <div
+            ref="scrollEl"
+            @scroll="updateScrollState"
+            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {{ cat }}
-          </button>
+            <button
+              v-for="cat in CATEGORIES"
+              :key="cat"
+              @click="selectedCategory = cat"
+              :class="selectedCategory === cat ? 'bg-ink text-white' : 'bg-canvas text-ink'"
+              class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1 text-[11px] font-extrabold whitespace-nowrap"
+            >
+              {{ cat }}
+            </button>
+          </div>
+
+          <div
+            v-if="canScrollRight"
+            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+          ></div>
         </div>
       </div>
 

@@ -420,7 +420,6 @@ export function useInventory() {
       const smallPrice = smallPriceIdx !== -1 ? parseFloat(cols[smallPriceIdx] || '0') : undefined;
 
       if (existing) {
-        // Smart Update: Update metadata & harga, PERTAHANKAN stok berjalan aktual di toko
         const updatedProduct: Product = {
           ...existing,
           name,
@@ -447,7 +446,6 @@ export function useInventory() {
 
         updateProducts.push(updatedProduct);
       } else {
-        // Produk Baru: Buat baru termasuk stok awal dari CSV
         const sku = inputSku || (await generateSku());
         const stock = stockIdx !== -1 ? parseFloat(cols[stockIdx] || '0') : 0;
 

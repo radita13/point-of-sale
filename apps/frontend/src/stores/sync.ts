@@ -189,7 +189,6 @@ export const useSyncStore = defineStore('sync', () => {
       for (const sp of serverProducts) {
         const local = localMap.get(sp.id);
         if (local && local.isSynced === false) {
-          // Jangan timpa jika ada perubahan lokal yang belum tersimpan ke server
           continue;
         }
 
