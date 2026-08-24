@@ -1,6 +1,5 @@
 /**
- * Shared domain types FE <-> BE (PRD §9, §7.3).
- * Mirrors IndexedDB schema (PRD §9.2) plus server extras.
+ * Shared domain types FE <-> BE
  */
 
 export type Unit = "kg" | "pcs" | "liter" | "pak" | "saset" | "bat";

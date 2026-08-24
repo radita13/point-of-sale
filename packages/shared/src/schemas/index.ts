@@ -46,52 +46,99 @@ export const productSyncSchema = z.object({
   updatedAt: z.number().int().nonnegative(),
 });
 
+const storeIdSchema = z.string().uuid("storeId must be a valid UUID");
+
 export const productSyncPayloadSchema = z.object({
-  storeId: z.string().min(1),
+  storeId: storeIdSchema,
   products: z.array(productSyncSchema).min(1).max(100),
 });
 
-export const transactionItemSchema = z.object({
-  productId: z.string().regex(UUID_V4_RE, "invalid productId"),
-  productName: z.string().min(1),
-  sku: z.string().optional(),
-  qty: z.number().positive(),
-  unit: unitSchema,
-  price: z.number().nonnegative(),
-  subtotal: z.number().nonnegative(),
-  costPrice: z.number().nonnegative().optional(),
-});
+export const transactionItemSchema = z
+  .object({
+    productId: z.string().regex(UUID_V4_RE, "invalid productId"),
+    productName: z.string().min(1),
+    sku: z.string().optional(),
+    qty: z.number().positive(),
+    unit: unitSchema,
+    price: z.number().nonnegative(),
+    subtotal: z.number().nonnegative(),
+    costPrice: z.number().nonnegative().optional(),
+  })
+  .refine(
+    (item) => Math.abs(item.subtotal - item.qty * item.price) < 0.01,
+    {
+      message: "subtotal must equal qty * price",
+      path: ["subtotal"],
+    },
+  );
 
-export const transactionSchema = z.object({
-  id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
-  invoiceNo: z.string().min(1),
-  timestamp: z.number().int().positive(),
-  items: z.array(transactionItemSchema).min(1),
-  totalAmount: z.number().nonnegative(),
-  finalAmount: z.number().nonnegative(),
-  paymentMethod: paymentMethodSchema,
-  payAmount: z.number().nonnegative(),
-  changeAmount: z.number(),
-  isSynced: z.boolean(),
-});
+export const transactionSchema = z
+  .object({
+    id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
+    invoiceNo: z.string().min(1),
+    timestamp: z.number().int().positive(),
+    items: z.array(transactionItemSchema).min(1).max(100),
+    totalAmount: z.number().nonnegative(),
+    finalAmount: z.number().nonnegative(),
+    paymentMethod: paymentMethodSchema,
+    payAmount: z.number().nonnegative(),
+    changeAmount: z.number(),
+    isSynced: z.boolean(),
+  })
+  .refine(
+    (tx) => {
+      const calculatedTotal = tx.items.reduce((sum, item) => sum + item.subtotal, 0);
+      return Math.abs(tx.totalAmount - calculatedTotal) < 0.01;
+    },
+    {
+      message: "totalAmount must equal sum of item subtotals",
+      path: ["totalAmount"],
+    },
+  )
+  .refine(
+    (tx) => Math.abs(tx.changeAmount - (tx.payAmount - tx.finalAmount)) < 0.01,
+    {
+      message: "changeAmount must equal payAmount - finalAmount",
+      path: ["changeAmount"],
+    },
+  );
 
 export const syncPayloadSchema = z.object({
-  storeId: z.string().min(1),
+  storeId: storeIdSchema,
   transactions: z.array(transactionSchema).min(1).max(100),
+});
+
+export const getProductsQuerySchema = z.object({
+  storeId: storeIdSchema,
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  since: z.coerce.number().int().positive().optional(),
+});
+
+export const getTransactionsQuerySchema = z.object({
+  storeId: storeIdSchema,
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+
+export const getLowStockQuerySchema = z.object({
+  storeId: storeIdSchema,
 });
 
 export const syncStatusQuerySchema = z.object({
   ids: z
     .string()
-    .refine((s) => s.length > 0, {
-      message: "ids query param is required",
-    })
+    .min(1, "ids query parameter required")
     .transform((s) =>
       s
         .split(",")
         .map((x) => x.trim())
         .filter(Boolean),
-    ),
+    )
+    .refine((arr) => arr.length > 0, {
+      message: "ids query parameter required",
+    }),
+  storeId: storeIdSchema.optional(),
 });
 
 export const inventoryAdjustmentSchema = z.object({
@@ -100,4 +147,9 @@ export const inventoryAdjustmentSchema = z.object({
   quantity: z.number().nonnegative(),
   note: z.string().optional(),
   adjustedAt: z.number().int().positive(),
+});
+
+export const inventoryAdjustmentsPayloadSchema = z.object({
+  storeId: storeIdSchema,
+  adjustments: z.array(inventoryAdjustmentSchema).min(1).max(100),
 });

@@ -1,7 +1,6 @@
 import { prisma } from "../db.js";
 import { toPrismaError } from "../lib/errors.js";
 import { requireStoreAccess } from "../middleware/store-access.js";
-import { productSyncPayloadSchema } from "@point-of-sale/shared";
 import { uploadProductImage } from "../lib/storage.js";
 
 function cleanQty(val: any): number {
@@ -12,25 +11,21 @@ function cleanQty(val: any): number {
 }
 
 export async function getProducts(req: any, res: any): Promise<void> {
-  const storeId = String(req.query.storeId ?? "");
-  if (!storeId) {
-    res.status(400).json({ error: "storeId query parameter required" });
-    return;
-  }
+  const {
+    storeId,
+    page: rawPage,
+    limit: rawLimit,
+    since: rawSince,
+  } = req.validated;
   if (!(await requireStoreAccess(req, res, storeId))) return;
 
-  const page =
-    req.query.page !== undefined
-      ? Math.max(1, parseInt(String(req.query.page), 10) || 1)
-      : undefined;
-  const limit =
-    req.query.limit !== undefined
-      ? Math.max(1, parseInt(String(req.query.limit), 10) || 10)
-      : 10;
+  const page = rawPage !== undefined ? Math.max(1, Number(rawPage)) : undefined;
+  const limit = rawLimit !== undefined ? Math.max(1, Number(rawLimit)) : 10;
 
   try {
-    const sinceParam = req.query.since ? parseInt(String(req.query.since), 10) : undefined;
-    const sinceDate = sinceParam && !isNaN(sinceParam) ? new Date(sinceParam) : undefined;
+    const sinceParam = rawSince ? Number(rawSince) : undefined;
+    const sinceDate =
+      sinceParam && !isNaN(sinceParam) ? new Date(sinceParam) : undefined;
 
     const where: any = { storeId };
     if (sinceDate) {
@@ -112,11 +107,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
 }
 
 export async function syncProducts(req: any, res: any): Promise<void> {
-  const { storeId, products } = req.validated ?? req.body ?? {};
-  if (!storeId || !products) {
-    res.status(400).json({ error: "Payload tidak valid" });
-    return;
-  }
+  const { storeId, products } = req.validated;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   const synced: Array<{ id: string; image: string | null }> = [];
 

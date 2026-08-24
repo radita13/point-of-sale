@@ -1,21 +1,9 @@
-import type { Request, Response } from 'express';
-import { z } from 'zod';
-import { prisma } from '../db.js';
-import { toPrismaError } from '../lib/errors.js';
-import { requireStoreAccess } from '../middleware/store-access.js';
-import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
-
-const adjustmentsPayloadSchema = z.object({
-  storeId: z.string().min(1),
-  adjustments: z.array(inventoryAdjustmentSchema).min(1).max(100),
-});
+import { prisma } from "../db.js";
+import { toPrismaError } from "../lib/errors.js";
+import { requireStoreAccess } from "../middleware/store-access.js";
 
 export async function getLowStock(req: any, res: any): Promise<void> {
-  const storeId = String(req.query.storeId ?? '');
-  if (!storeId) {
-    res.status(400).json({ error: 'storeId query parameter required' });
-    return;
-  }
+  const { storeId } = req.validated;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   try {
     const low = await prisma.$queryRaw<
@@ -51,11 +39,7 @@ export async function getLowStock(req: any, res: any): Promise<void> {
 }
 
 export async function adjustInventory(req: any, res: any): Promise<void> {
-  const { storeId, adjustments } = req.validated ?? req.body ?? {};
-  if (!storeId || !adjustments) {
-    res.status(400).json({ error: 'Payload tidak valid' });
-    return;
-  }
+  const { storeId, adjustments } = req.validated;
   if (!(await requireStoreAccess(req, res, storeId))) return;
   try {
     const results = await prisma.$transaction(async (tx: any) => {
@@ -65,7 +49,9 @@ export async function adjustInventory(req: any, res: any): Promise<void> {
           where: { id: a.id },
         });
         if (existing) continue;
-        const product = await tx.product.findUnique({ where: { serverId: a.productId } });
+        const product = await tx.product.findUnique({
+          where: { serverId: a.productId },
+        });
         if (!product) continue;
         await tx.product.update({
           where: { id: product.id },
@@ -78,7 +64,7 @@ export async function adjustInventory(req: any, res: any): Promise<void> {
               storeId,
               productId: product.id,
               quantity: a.quantity,
-              note: a.note ?? 'stock opname',
+              note: a.note ?? "stock opname",
               adjustedAt: new Date(a.adjustedAt),
             },
           }),

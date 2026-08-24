@@ -2,7 +2,7 @@
   "name": "point-of-sale",
   "private": true,
   "version": "1.0.0",
-  "description": "Point of Sale - Offline-first POS PWA monorepo (Vue 3 FE + Express BE + shared)",
+  "description": "Point of Sale (POS)",
   "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20"
