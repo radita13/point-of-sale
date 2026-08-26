@@ -3,8 +3,10 @@ import { toPrismaError } from "../lib/errors.js";
 import { requireStoreAccess } from "../middleware/store-access.js";
 
 export async function getLowStock(req: any, res: any): Promise<void> {
-  const { storeId } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const { storeId: providedStoreId } = req.validated;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
   try {
     const low = await prisma.$queryRaw<
       Array<{
@@ -39,8 +41,10 @@ export async function getLowStock(req: any, res: any): Promise<void> {
 }
 
 export async function adjustInventory(req: any, res: any): Promise<void> {
-  const { storeId, adjustments } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const { storeId: providedStoreId, adjustments } = req.validated;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
   try {
     const results = await prisma.$transaction(async (tx: any) => {
       const rows = [];

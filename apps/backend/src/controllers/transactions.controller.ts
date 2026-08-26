@@ -23,8 +23,10 @@ async function nextInvoiceNoForStore(
 }
 
 export async function syncTransactions(req: any, res: any): Promise<void> {
-  const { storeId, transactions } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const { storeId: providedStoreId, transactions } = req.validated;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
 
   try {
     const feProductIds: string[] = Array.from(
@@ -125,8 +127,10 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
 }
 
 export async function getSyncStatus(req: any, res: any): Promise<void> {
-  const { ids, storeId } = req.validated;
-  if (storeId && !(await requireStoreAccess(req, res, storeId))) return;
+  const { ids, storeId: providedStoreId } = req.validated;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
   try {
     const where = storeId ? { id: { in: ids }, storeId } : { id: { in: ids } };
     const found = await prisma.transaction.findMany({ where });
@@ -146,11 +150,13 @@ export async function getSyncStatus(req: any, res: any): Promise<void> {
 
 export async function getTransactions(req: any, res: any): Promise<void> {
   const {
-    storeId,
+    storeId: providedStoreId,
     page: rawPage,
     limit: rawLimit,
   } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
 
   const page = Math.max(1, Number(rawPage ?? 1));
   const limit = Math.min(100, Math.max(1, Number(rawLimit ?? 10)));

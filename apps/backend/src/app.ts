@@ -10,13 +10,11 @@ const rateLimit = (typeof rateLimitModule === "function" ? rateLimitModule : (ra
 import productsRouter from "./routes/products.js";
 import inventoryRouter from "./routes/inventory.js";
 import transactionsRouter from "./routes/transactions.js";
+import storesRouter from "./routes/stores.js";
 
 const app = express();
 
-const allowedOrigins = (
-  process.env.CORS_ORIGINS ??
-  "http://localhost:5173,http://127.0.0.1:5173,https://point-of-sale-fe.vercel.app"
-)
+const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
   .map((s) => s.trim().replace(/\/$/, ""))
   .filter(Boolean);
@@ -24,7 +22,8 @@ const allowedOrigins = (
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+      // Jika CORS_ORIGINS tidak di-set atau kosong di dev, izinkan (atau cek origin yang terdaftar)
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -64,6 +63,7 @@ app.use("/api/v1/inventory/adjustments", syncLimiter);
 app.use("/api/v1/products", apiLimiter, productsRouter);
 app.use("/api/v1/inventory", apiLimiter, inventoryRouter);
 app.use("/api/v1/transactions", apiLimiter, transactionsRouter);
+app.use("/api/v1/stores", apiLimiter, storesRouter);
 
 app.use((_req: any, res: any) => {
   res.status(404).json({ error: "Route tidak ditemukan" });

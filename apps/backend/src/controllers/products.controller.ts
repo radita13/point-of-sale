@@ -12,12 +12,14 @@ function cleanQty(val: any): number {
 
 export async function getProducts(req: any, res: any): Promise<void> {
   const {
-    storeId,
+    storeId: providedStoreId,
     page: rawPage,
     limit: rawLimit,
     since: rawSince,
   } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
 
   const page = rawPage !== undefined ? Math.max(1, Number(rawPage)) : undefined;
   const limit = rawLimit !== undefined ? Math.max(1, Number(rawLimit)) : 10;
@@ -107,8 +109,10 @@ export async function getProducts(req: any, res: any): Promise<void> {
 }
 
 export async function syncProducts(req: any, res: any): Promise<void> {
-  const { storeId, products } = req.validated;
-  if (!(await requireStoreAccess(req, res, storeId))) return;
+  const { storeId: providedStoreId, products } = req.validated;
+  const access = await requireStoreAccess(req, res, providedStoreId);
+  if (!access.ok || !access.storeId) return;
+  const storeId = access.storeId;
   const synced: Array<{ id: string; image: string | null }> = [];
 
   for (const p of products) {

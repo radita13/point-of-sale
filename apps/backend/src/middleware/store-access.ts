@@ -4,44 +4,74 @@ import "./auth.js";
 export async function requireStoreAccess(
   req: any,
   res: any,
-  storeId: string,
-): Promise<boolean> {
+  providedStoreId?: string,
+): Promise<{ ok: boolean; storeId?: string }> {
   const sub = req.auth?.sub;
   if (!sub) {
     res.status(401).json({ error: "Unauthorized" });
-    return false;
-  }
-  if (!storeId) {
-    res.status(400).json({ error: "storeId wajib diisi" });
-    return false;
+    return { ok: false };
   }
 
-  const store = await prisma.store.findUnique({ where: { id: storeId } });
+  let targetStoreId = providedStoreId;
+
+  if (!targetStoreId) {
+    let store = await prisma.store.findFirst({
+      where: { ownerId: sub },
+    });
+
+    if (!store) {
+      const unownedStore = await prisma.store.findFirst({
+        where: { ownerId: null },
+      });
+
+      if (unownedStore) {
+        store = await prisma.store.update({
+          where: { id: unownedStore.id },
+          data: { ownerId: sub },
+        });
+      } else {
+        const ownerEmail = req.auth?.email ?? "User";
+        const storeName = `Toko ${ownerEmail.split("@")[0]}`;
+        store = await prisma.store.create({
+          data: {
+            name: storeName,
+            ownerId: sub,
+          },
+        });
+      }
+    }
+    targetStoreId = store.id;
+  }
+
+  // Verifikasi kepemilikan store
+  const store = await prisma.store.findUnique({ where: { id: targetStoreId } });
   if (!store) {
     res
       .status(404)
-      .json({ error: `Store dengan ID ${storeId} tidak ditemukan` });
-    return false;
+      .json({ error: `Store dengan ID ${targetStoreId} tidak ditemukan` });
+    return { ok: false };
   }
 
   if (store.ownerId === null) {
     const claimed = await prisma.store.updateMany({
-      where: { id: storeId, ownerId: null },
+      where: { id: targetStoreId, ownerId: null },
       data: { ownerId: sub },
     });
-    if (claimed.count > 0) return true;
-    const rechecked = await prisma.store.findUnique({ where: { id: storeId } });
+    if (claimed.count > 0) return { ok: true, storeId: targetStoreId };
+    const rechecked = await prisma.store.findUnique({
+      where: { id: targetStoreId },
+    });
     if (rechecked?.ownerId !== sub) {
       res.status(403).json({ error: "Forbidden: Anda bukan pemilik toko ini" });
-      return false;
+      return { ok: false };
     }
-    return true;
+    return { ok: true, storeId: targetStoreId };
   }
 
   if (store.ownerId !== sub) {
     res.status(403).json({ error: "Forbidden: Anda bukan pemilik toko ini" });
-    return false;
+    return { ok: false };
   }
 
-  return true;
+  return { ok: true, storeId: targetStoreId };
 }
