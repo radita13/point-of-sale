@@ -6,7 +6,11 @@ import express, {
 } from "express";
 import cors from "cors";
 import rateLimitModule from "express-rate-limit";
-const rateLimit = (typeof rateLimitModule === "function" ? rateLimitModule : (rateLimitModule as any).default || rateLimitModule) as any;
+const rateLimit = (
+  typeof rateLimitModule === "function"
+    ? rateLimitModule
+    : (rateLimitModule as any).default || rateLimitModule
+) as any;
 import productsRouter from "./routes/products.js";
 import inventoryRouter from "./routes/inventory.js";
 import transactionsRouter from "./routes/transactions.js";
@@ -22,8 +26,11 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Jika CORS_ORIGINS tidak di-set atau kosong di dev, izinkan (atau cek origin yang terdaftar)
-      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+      if (
+        !origin ||
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes(origin.replace(/\/$/, ""))
+      ) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));

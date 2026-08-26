@@ -59,12 +59,12 @@ export interface Transaction {
 }
 
 export interface SyncPayload {
-  storeId: string;
+  storeId?: string;
   transactions: Transaction[];
 }
 
 export interface ProductSyncPayload {
-  storeId: string;
+  storeId?: string;
   products: Product[];
 }
 

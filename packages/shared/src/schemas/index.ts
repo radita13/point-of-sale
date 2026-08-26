@@ -49,7 +49,7 @@ export const productSyncSchema = z.object({
 const storeIdSchema = z.string().uuid("storeId must be a valid UUID");
 
 export const productSyncPayloadSchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
   products: z.array(productSyncSchema).min(1).max(100),
 });
 
@@ -104,25 +104,25 @@ export const transactionSchema = z
   );
 
 export const syncPayloadSchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
   transactions: z.array(transactionSchema).min(1).max(100),
 });
 
 export const getProductsQuerySchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   since: z.coerce.number().int().positive().optional(),
 });
 
 export const getTransactionsQuerySchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const getLowStockQuerySchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
 });
 
 export const syncStatusQuerySchema = z.object({
@@ -150,6 +150,6 @@ export const inventoryAdjustmentSchema = z.object({
 });
 
 export const inventoryAdjustmentsPayloadSchema = z.object({
-  storeId: storeIdSchema,
+  storeId: storeIdSchema.optional(),
   adjustments: z.array(inventoryAdjustmentSchema).min(1).max(100),
 });
