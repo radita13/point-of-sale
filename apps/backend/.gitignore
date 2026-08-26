@@ -10,10 +10,11 @@ dist/
 .env.*.local
 !.env.example
 
-# Prisma Local / Dev DBs
+# Prisma Local / Dev DBs & Generated Client
 prisma/migrations/dev.db*
 *.db
 *.sqlite
+src/generated/
 
 # Logs
 *.log
