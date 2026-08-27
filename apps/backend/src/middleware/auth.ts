@@ -1,5 +1,5 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
-import type { Request, Response, NextFunction } from "express";
+import type { Request, Response as ExpressResponse, NextFunction } from "express";
 
 export interface SupabaseAuthResult {
   sub: string;
@@ -8,9 +8,9 @@ export interface SupabaseAuthResult {
 
 export async function authGuard(
   req: Request,
-  res: Response,
+  res: ExpressResponse,
   next: NextFunction,
-): Promise<void | Response> {
+): Promise<void | ExpressResponse> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Missing authorization token" });
@@ -66,7 +66,7 @@ export async function authGuard(
         headers["apikey"] = anonKey;
       }
 
-      const response = await fetch(url.toString(), { headers });
+      const response: globalThis.Response = await fetch(url.toString(), { headers });
 
       if (response.ok) {
         const userData = (await response.json()) as {
