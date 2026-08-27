@@ -86,3 +86,30 @@ export interface InventoryAdjustment {
   note?: string;
   adjustedAt: number;
 }
+
+export interface InventoryAdjustmentsPayload {
+  storeId?: string;
+  adjustments: InventoryAdjustment[];
+}
+
+export interface GetProductsQuery {
+  storeId?: string;
+  page?: number;
+  limit?: number;
+  since?: number;
+}
+
+export interface GetTransactionsQuery {
+  storeId?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface GetLowStockQuery {
+  storeId?: string;
+}
+
+export interface SyncStatusQuery {
+  ids: string[];
+  storeId?: string;
+}
