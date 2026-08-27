@@ -1,9 +1,48 @@
-import { prisma } from "../db.js";
-import "./auth.js";
+import type { Request, Response } from "express";
+import { prisma } from "../db";
+import type { Store } from "../generated/client";
+import "./auth";
+
+/**
+ * Resolves an existing store owned by the user, claims an unowned store,
+ * or creates a default store for the authenticated user.
+ */
+export async function resolveOrCreateUserStore(
+  userId: string,
+  userEmail?: string,
+): Promise<Store> {
+  let store = await prisma.store.findFirst({
+    where: { ownerId: userId },
+  });
+
+  if (!store) {
+    const unownedStore = await prisma.store.findFirst({
+      where: { ownerId: null },
+    });
+
+    if (unownedStore) {
+      store = await prisma.store.update({
+        where: { id: unownedStore.id },
+        data: { ownerId: userId },
+      });
+    } else {
+      const email = userEmail ?? "User";
+      const storeName = `Toko ${email.split("@")[0]}`;
+      store = await prisma.store.create({
+        data: {
+          name: storeName,
+          ownerId: userId,
+        },
+      });
+    }
+  }
+
+  return store;
+}
 
 export async function requireStoreAccess(
-  req: any,
-  res: any,
+  req: Request,
+  res: Response,
   providedStoreId?: string,
 ): Promise<{ ok: boolean; storeId?: string }> {
   const sub = req.auth?.sub;
@@ -15,40 +54,16 @@ export async function requireStoreAccess(
   let targetStoreId = providedStoreId;
 
   if (!targetStoreId) {
-    let store = await prisma.store.findFirst({
-      where: { ownerId: sub },
-    });
-
-    if (!store) {
-      const unownedStore = await prisma.store.findFirst({
-        where: { ownerId: null },
-      });
-
-      if (unownedStore) {
-        store = await prisma.store.update({
-          where: { id: unownedStore.id },
-          data: { ownerId: sub },
-        });
-      } else {
-        const ownerEmail = req.auth?.email ?? "User";
-        const storeName = `Toko ${ownerEmail.split("@")[0]}`;
-        store = await prisma.store.create({
-          data: {
-            name: storeName,
-            ownerId: sub,
-          },
-        });
-      }
-    }
+    const store = await resolveOrCreateUserStore(sub, req.auth?.email ?? undefined);
     targetStoreId = store.id;
   }
 
-  // Verifikasi kepemilikan store
+  // Verify store access and ownership
   const store = await prisma.store.findUnique({ where: { id: targetStoreId } });
   if (!store) {
     res
       .status(404)
-      .json({ error: `Store dengan ID ${targetStoreId} tidak ditemukan` });
+      .json({ error: `Store with ID ${targetStoreId} not found` });
     return { ok: false };
   }
 
@@ -62,14 +77,14 @@ export async function requireStoreAccess(
       where: { id: targetStoreId },
     });
     if (rechecked?.ownerId !== sub) {
-      res.status(403).json({ error: "Forbidden: Anda bukan pemilik toko ini" });
+      res.status(403).json({ error: "Forbidden: You are not the owner of this store" });
       return { ok: false };
     }
     return { ok: true, storeId: targetStoreId };
   }
 
   if (store.ownerId !== sub) {
-    res.status(403).json({ error: "Forbidden: Anda bukan pemilik toko ini" });
+    res.status(403).json({ error: "Forbidden: You are not the owner of this store" });
     return { ok: false };
   }
 

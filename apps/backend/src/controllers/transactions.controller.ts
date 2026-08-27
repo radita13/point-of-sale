@@ -1,10 +1,19 @@
-import { prisma } from "../db.js";
-import { toPrismaError } from "../lib/errors.js";
-import { requireStoreAccess } from "../middleware/store-access.js";
-import type { PaymentMethod, Unit } from "@point-of-sale/shared";
+import type { Response } from "express";
+import { prisma } from "../db";
+import { toPrismaError } from "../lib/errors";
+import { requireStoreAccess } from "../middleware/store-access";
+import type { ValidatedRequest } from "../types/http";
+import type { Prisma } from "../generated/client";
+import type {
+  GetTransactionsQuery,
+  PaymentMethod,
+  SyncPayload,
+  SyncStatusQuery,
+  Unit,
+} from "@point-of-sale/shared";
 
 async function nextInvoiceNoForStore(
-  tx: any,
+  tx: Prisma.TransactionClient,
   storeId: string,
   invoiceNo: string,
 ): Promise<string> {
@@ -22,7 +31,10 @@ async function nextInvoiceNoForStore(
   return `${prefix}${String(maxSeq + 1).padStart(4, "0")}`;
 }
 
-export async function syncTransactions(req: any, res: any): Promise<void> {
+export async function syncTransactions(
+  req: ValidatedRequest<SyncPayload>,
+  res: Response,
+): Promise<void> {
   const { storeId: providedStoreId, transactions } = req.validated;
   const access = await requireStoreAccess(req, res, providedStoreId);
   if (!access.ok || !access.storeId) return;
@@ -31,8 +43,8 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
   try {
     const feProductIds: string[] = Array.from(
       new Set(
-        transactions.flatMap((t: any) =>
-          t.items.map((it: any) => String(it.productId)),
+        transactions.flatMap((t) =>
+          t.items.map((it) => String(it.productId)),
         ),
       ),
     );
@@ -63,11 +75,11 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
       }
 
       const invalidItem = t.items.find(
-        (it: any) => !productIdMap.has(it.productId),
+        (it) => !productIdMap.has(it.productId),
       );
       if (invalidItem) {
         console.warn(
-          `[transactions/sync] skip ${t.id} (${t.invoiceNo}): produk '${invalidItem.productName}' (${invalidItem.productId}) tidak ditemukan di server.`,
+          `[transactions/sync] Skip transaction ${t.id} (${t.invoiceNo}): product '${invalidItem.productName}' (${invalidItem.productId}) not found on server.`,
         );
         skipped.push(t.id);
         continue;
@@ -89,7 +101,7 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
               changeAmount: t.changeAmount,
               storeId,
               items: {
-                create: t.items.map((it: any) => ({
+                create: t.items.map((it) => ({
                   productId: productIdMap.get(it.productId)!,
                   productName: it.productName,
                   sku: it.sku,
@@ -103,30 +115,46 @@ export async function syncTransactions(req: any, res: any): Promise<void> {
             },
           });
           created = true;
-        } catch (err: any) {
-          if (err?.code === "P2002") {
-            invoiceNo = await nextInvoiceNoForStore(prisma, storeId, invoiceNo);
-            if (invoiceNo !== t.invoiceNo) invoiceNoMap[t.id] = invoiceNo;
-            continue;
+          updated.push(t.id);
+          if (invoiceNo !== t.invoiceNo) {
+            invoiceNoMap[t.id] = invoiceNo;
           }
-          throw err;
+        } catch (err: unknown) {
+          const isPrismaP2002 =
+            err &&
+            typeof err === "object" &&
+            "code" in err &&
+            (err as { code: string }).code === "P2002";
+
+          if (isPrismaP2002 && attempt < 4) {
+            const resolvedInvoiceNo = await nextInvoiceNoForStore(
+              prisma,
+              storeId,
+              t.invoiceNo,
+            );
+            invoiceNo = resolvedInvoiceNo;
+          } else {
+            console.error(`[transactions/sync] error inserting ${t.id}:`, err);
+            break;
+          }
         }
       }
-      if (!created) {
-        res.status(500).json({
-          error: "Gagal menyimpan transaksi setelah beberapa percobaan.",
-        });
-        return;
-      }
-      updated.push(t.id);
     }
-    res.status(201).json({ synced: updated, skipped: skipped, invoiceNoMap });
-  } catch (e) {
+
+    res.json({
+      synced: updated,
+      skipped,
+      invoiceNoMap,
+    });
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }
 
-export async function getSyncStatus(req: any, res: any): Promise<void> {
+export async function getSyncStatus(
+  req: ValidatedRequest<SyncStatusQuery>,
+  res: Response,
+): Promise<void> {
   const { ids, storeId: providedStoreId } = req.validated;
   const access = await requireStoreAccess(req, res, providedStoreId);
   if (!access.ok || !access.storeId) return;
@@ -134,21 +162,19 @@ export async function getSyncStatus(req: any, res: any): Promise<void> {
   try {
     const where = storeId ? { id: { in: ids }, storeId } : { id: { in: ids } };
     const found = await prisma.transaction.findMany({ where });
-    const byId = new Map(
-      found.map((tx: any) => [tx.id, tx.timestamp.getTime()]),
+    const syncedMap: Record<string, number> = Object.fromEntries(
+      found.map((tx) => [tx.id, tx.timestamp.getTime()]),
     );
-    const result = ids.map((id: string) => ({
-      id,
-      isSynced: byId.has(id),
-      syncedAt: byId.get(id) ?? null,
-    }));
-    res.json(result);
-  } catch (e) {
+    res.json({ synced: syncedMap });
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }
 
-export async function getTransactions(req: any, res: any): Promise<void> {
+export async function getTransactions(
+  req: ValidatedRequest<GetTransactionsQuery>,
+  res: Response,
+): Promise<void> {
   const {
     storeId: providedStoreId,
     page: rawPage,
@@ -163,42 +189,47 @@ export async function getTransactions(req: any, res: any): Promise<void> {
   const skip = (page - 1) * limit;
 
   try {
-    const [rows, total] = await Promise.all([
+    const [total, rows] = await Promise.all([
+      prisma.transaction.count({ where: { storeId } }),
       prisma.transaction.findMany({
         where: { storeId },
+        include: { items: true },
         orderBy: { timestamp: "desc" },
         skip,
         take: limit,
-        include: { items: true },
       }),
-      prisma.transaction.count({ where: { storeId } }),
     ]);
 
     res.json({
-      data: rows.map((t: any) => ({
+      data: rows.map((t) => ({
         id: t.id,
         invoiceNo: t.invoiceNo,
         timestamp: t.timestamp.getTime(),
-        items: t.items.map((it: any) => ({
-          productId: it.productId,
-          productName: it.productName,
-          sku: it.sku ?? undefined,
-          qty: Number(it.qty),
-          unit: it.unit as Unit,
-          price: it.price.toNumber(),
-          costPrice: it.costPrice ? it.costPrice.toNumber() : undefined,
-          subtotal: it.subtotal.toNumber(),
-        })),
         totalAmount: t.totalAmount.toNumber(),
         finalAmount: t.finalAmount.toNumber(),
         paymentMethod: t.paymentMethod as PaymentMethod,
         payAmount: t.payAmount.toNumber(),
         changeAmount: t.changeAmount.toNumber(),
+        items: t.items.map((it) => ({
+          productId: it.productId,
+          productName: it.productName,
+          sku: it.sku ?? undefined,
+          qty: it.qty,
+          unit: it.unit as Unit,
+          price: it.price.toNumber(),
+          costPrice: it.costPrice ? it.costPrice.toNumber() : undefined,
+          subtotal: it.subtotal.toNumber(),
+        })),
         isSynced: true,
       })),
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     });
-  } catch (e) {
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }

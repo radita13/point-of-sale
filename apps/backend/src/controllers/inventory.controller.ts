@@ -1,8 +1,18 @@
-import { prisma } from "../db.js";
-import { toPrismaError } from "../lib/errors.js";
-import { requireStoreAccess } from "../middleware/store-access.js";
+import type { Response } from "express";
+import { prisma } from "../db";
+import { toPrismaError } from "../lib/errors";
+import { requireStoreAccess } from "../middleware/store-access";
+import type { ValidatedRequest } from "../types/http";
+import type { Prisma } from "../generated/client";
+import type {
+  GetLowStockQuery,
+  InventoryAdjustmentsPayload,
+} from "@point-of-sale/shared";
 
-export async function getLowStock(req: any, res: any): Promise<void> {
+export async function getLowStock(
+  req: ValidatedRequest<GetLowStockQuery>,
+  res: Response,
+): Promise<void> {
   const { storeId: providedStoreId } = req.validated;
   const access = await requireStoreAccess(req, res, providedStoreId);
   if (!access.ok || !access.storeId) return;
@@ -26,7 +36,7 @@ export async function getLowStock(req: any, res: any): Promise<void> {
       ORDER BY "stock" ASC
     `;
     res.json(
-      low.map((p: any) => ({
+      low.map((p) => ({
         id: p.serverId,
         sku: p.sku,
         name: p.name,
@@ -35,49 +45,56 @@ export async function getLowStock(req: any, res: any): Promise<void> {
         unit: p.unit,
       })),
     );
-  } catch (e) {
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }
 
-export async function adjustInventory(req: any, res: any): Promise<void> {
+export async function adjustInventory(
+  req: ValidatedRequest<InventoryAdjustmentsPayload>,
+  res: Response,
+): Promise<void> {
   const { storeId: providedStoreId, adjustments } = req.validated;
   const access = await requireStoreAccess(req, res, providedStoreId);
   if (!access.ok || !access.storeId) return;
   const storeId = access.storeId;
   try {
-    const results = await prisma.$transaction(async (tx: any) => {
-      const rows = [];
-      for (const a of adjustments) {
-        const existing = await tx.inventoryAdjustment.findUnique({
-          where: { id: a.id },
-        });
-        if (existing) continue;
-        const product = await tx.product.findUnique({
-          where: { serverId: a.productId },
-        });
-        if (!product) continue;
-        await tx.product.update({
-          where: { id: product.id },
-          data: { stock: a.quantity },
-        });
-        rows.push(
-          await tx.inventoryAdjustment.create({
+    const results = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const rows = [];
+        for (const a of adjustments) {
+          const existing = await tx.inventoryAdjustment.findUnique({
+            where: { id: a.id },
+          });
+          if (existing) continue;
+          const product = await tx.product.findUnique({
+            where: { serverId: a.productId },
+          });
+          if (!product) continue;
+          await tx.product.update({
+            where: { id: product.id },
+            data: {
+              stock: Number(a.quantity),
+              updatedAt: new Date(a.adjustedAt),
+            },
+          });
+          const created = await tx.inventoryAdjustment.create({
             data: {
               id: a.id,
               storeId,
               productId: product.id,
-              quantity: a.quantity,
-              note: a.note ?? "stock opname",
+              quantity: Number(a.quantity),
+              note: a.note ?? null,
               adjustedAt: new Date(a.adjustedAt),
             },
-          }),
-        );
-      }
-      return rows;
-    });
-    res.status(201).json({ synced: results.length });
-  } catch (e) {
+          });
+          rows.push(created);
+        }
+        return rows;
+      },
+    );
+    res.status(201).json({ updated: results.length });
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }

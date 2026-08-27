@@ -1,30 +1,32 @@
-import type { RequestHandler } from "express";
-import { ZodSchema } from "zod";
+import type { RequestHandler, Request, Response, NextFunction } from "express";
+import { type ZodType, type ZodTypeDef } from "zod";
+import type { ValidatedRequest, TypedAsyncHandler } from "../types/http";
 
-export function validate(
-  schema: ZodSchema,
+export function validate<TOutput, TInput = unknown>(
+  schema: ZodType<TOutput, ZodTypeDef, TInput>,
   source: "body" | "query" | "params" = "body",
 ): RequestHandler {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req[source]);
     if (!result.success) {
-      return res.status(400).json({
-        error: "Validasi gagal",
+      res.status(400).json({
+        error: "Validation failed",
         issues: result.error.issues.map((i) => ({
           path: i.path.join("."),
           message: i.message,
         })),
       });
+      return;
     }
-    (req as any).validated = result.data;
-    return next();
+    (req as ValidatedRequest<TOutput>).validated = result.data;
+    next();
   };
 }
 
-export function asyncHandler(
-  fn: (req: any, res: any, next: any) => Promise<void>,
+export function asyncHandler<T = unknown>(
+  fn: TypedAsyncHandler<T>,
 ): RequestHandler {
-  return (req: any, res: any, next: any) => {
-    fn(req, res, next).catch(next);
+  return (req: Request, res: Response, next: NextFunction) => {
+    fn(req as ValidatedRequest<T>, res, next).catch(next);
   };
 }

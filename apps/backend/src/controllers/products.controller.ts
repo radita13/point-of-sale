@@ -1,16 +1,26 @@
-import { prisma } from "../db.js";
-import { toPrismaError } from "../lib/errors.js";
-import { requireStoreAccess } from "../middleware/store-access.js";
-import { uploadProductImage } from "../lib/storage.js";
+import type { Response } from "express";
+import { prisma } from "../db";
+import { toPrismaError } from "../lib/errors";
+import { requireStoreAccess } from "../middleware/store-access";
+import { uploadProductImage } from "../lib/storage";
+import type { ValidatedRequest } from "../types/http";
+import type { Prisma } from "../generated/client";
+import type {
+  GetProductsQuery,
+  ProductSyncPayload,
+} from "@point-of-sale/shared";
 
-function cleanQty(val: any): number {
+function cleanQty(val: unknown): number {
   if (val === undefined || val === null) return 0;
   const num = Number(val);
   if (isNaN(num)) return 0;
   return num;
 }
 
-export async function getProducts(req: any, res: any): Promise<void> {
+export async function getProducts(
+  req: ValidatedRequest<GetProductsQuery>,
+  res: Response,
+): Promise<void> {
   const {
     storeId: providedStoreId,
     page: rawPage,
@@ -29,7 +39,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
     const sinceDate =
       sinceParam && !isNaN(sinceParam) ? new Date(sinceParam) : undefined;
 
-    const where: any = { storeId };
+    const where: Prisma.ProductWhereInput = { storeId };
     if (sinceDate) {
       where.updatedAt = { gte: sinceDate };
     } else {
@@ -47,7 +57,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
         }),
       ]);
 
-      const formatted = products.map((p: any) => ({
+      const formatted = products.map((p) => ({
         id: p.serverId,
         sku: p.sku,
         name: p.name,
@@ -60,18 +70,18 @@ export async function getProducts(req: any, res: any): Promise<void> {
         step: p.step ? cleanQty(p.step) : undefined,
         piecesPerUnit: p.piecesPerUnit ?? undefined,
         smallUnit: p.smallUnit ?? undefined,
-        smallPrice: p.smallPrice?.toNumber() ?? undefined,
+        smallPrice: p.smallPrice ? p.smallPrice.toNumber() : undefined,
         image: p.image,
-        isDeleted: p.isDeleted,
+        isSynced: true,
         updatedAt: p.updatedAt.getTime(),
       }));
 
       res.json({
         data: formatted,
-        meta: {
-          total,
+        pagination: {
           page,
           limit,
+          total,
           totalPages: Math.ceil(total / limit),
         },
       });
@@ -84,7 +94,7 @@ export async function getProducts(req: any, res: any): Promise<void> {
     });
 
     res.json(
-      products.map((p: any) => ({
+      products.map((p) => ({
         id: p.serverId,
         sku: p.sku,
         name: p.name,
@@ -97,18 +107,21 @@ export async function getProducts(req: any, res: any): Promise<void> {
         step: p.step ? cleanQty(p.step) : undefined,
         piecesPerUnit: p.piecesPerUnit ?? undefined,
         smallUnit: p.smallUnit ?? undefined,
-        smallPrice: p.smallPrice?.toNumber() ?? undefined,
+        smallPrice: p.smallPrice ? p.smallPrice.toNumber() : undefined,
         image: p.image,
-        isDeleted: p.isDeleted,
+        isSynced: true,
         updatedAt: p.updatedAt.getTime(),
       })),
     );
-  } catch (e) {
+  } catch (e: unknown) {
     res.status(500).json({ error: toPrismaError(e) });
   }
 }
 
-export async function syncProducts(req: any, res: any): Promise<void> {
+export async function syncProducts(
+  req: ValidatedRequest<ProductSyncPayload>,
+  res: Response,
+): Promise<void> {
   const { storeId: providedStoreId, products } = req.validated;
   const access = await requireStoreAccess(req, res, providedStoreId);
   if (!access.ok || !access.storeId) return;
@@ -116,77 +129,89 @@ export async function syncProducts(req: any, res: any): Promise<void> {
   const synced: Array<{ id: string; image: string | null }> = [];
 
   for (const p of products) {
-    if (p.isDeleted) {
-      const existingProduct = await prisma.product.findUnique({
-        where: { serverId: p.id },
-        include: {
-          transactionItems: { take: 1 },
-          adjustments: { take: 1 },
-        },
-      });
-
-      if (existingProduct) {
-        const hasTransactions = existingProduct.transactionItems.length > 0;
-        const hasAdjustments = existingProduct.adjustments.length > 0;
-
-        if (!hasTransactions && !hasAdjustments) {
-          await prisma.product.delete({ where: { id: existingProduct.id } });
-          synced.push({ id: p.id, image: null });
-          continue;
+    try {
+      let imageUrl: string | null | undefined = p.image;
+      if (p.image?.startsWith("data:")) {
+        try {
+          imageUrl = await uploadProductImage(p.image, p.id);
+        } catch (imgErr) {
+          console.warn(
+            `[products.sync] Image upload failed for SKU ${p.sku}, continuing without new image:`,
+            imgErr instanceof Error ? imgErr.message : String(imgErr),
+          );
+          imageUrl = undefined;
         }
       }
-    }
 
-    let image = p.image ?? null;
-    if (p.isDeleted) {
-      image = null;
-    } else if (image && image.startsWith("data:")) {
-      try {
-        image = await uploadProductImage(image, p.id);
-      } catch (err) {
-        console.warn("[products/sync] upload foto gagal, foto di-skip:", err);
-        image = null;
+      const existing = await prisma.product.findFirst({
+        where: { storeId, serverId: p.id },
+      });
+
+      const clientUpdated = new Date(p.updatedAt);
+      if (existing && existing.updatedAt > clientUpdated) {
+        synced.push({ id: p.id, image: existing.image });
+        continue;
       }
-    }
 
-    const sku = p.sku?.trim() ? p.sku : `SKU-${p.id.slice(0, 8).toUpperCase()}`;
-    const data = {
-      sku,
-      name: p.name,
-      category: p.category,
-      costPrice: p.costPrice,
-      sellingPrice: p.sellingPrice,
-      stock: cleanQty(p.stock) ?? 0,
-      minStock: cleanQty(p.minStock) ?? 0,
-      unit: p.unit,
-      step: cleanQty(p.step) ?? null,
-      piecesPerUnit: p.piecesPerUnit ?? null,
-      smallUnit: p.smallUnit ?? null,
-      smallPrice: p.smallPrice ?? null,
-      image,
-      isDeleted: p.isDeleted ?? false,
-      storeId,
-    };
-    const updatedProduct = await prisma.product.upsert({
-      where: { serverId: p.id },
-      update: data,
-      create: { serverId: p.id, ...data },
-    });
+      const imageUpdate =
+        imageUrl !== undefined ? { image: imageUrl } : {};
 
-    if (p.costPrice && Number(p.costPrice) > 0) {
-      await prisma.transactionItem.updateMany({
-        where: {
-          productId: updatedProduct.id,
-          OR: [{ costPrice: 0 }, { costPrice: null }],
-        },
-        data: {
+      const costPriceUpdate =
+        p.costPrice !== undefined ? Number(p.costPrice) : undefined;
+
+      const product = await prisma.product.upsert({
+        where: { sku: p.sku },
+        update: {
+          name: p.name,
+          category: p.category,
           costPrice: p.costPrice,
+          sellingPrice: p.sellingPrice,
+          stock: Number(p.stock),
+          minStock: Number(p.minStock),
+          unit: p.unit,
+          step: p.step ? Number(p.step) : null,
+          piecesPerUnit: p.piecesPerUnit ?? null,
+          smallUnit: p.smallUnit ?? null,
+          smallPrice: p.smallPrice ? Number(p.smallPrice) : null,
+          isDeleted: p.isDeleted ?? false,
+          updatedAt: clientUpdated,
+          storeId,
+          ...imageUpdate,
+        },
+        create: {
+          serverId: p.id,
+          sku: p.sku,
+          name: p.name,
+          category: p.category,
+          costPrice: p.costPrice,
+          sellingPrice: p.sellingPrice,
+          stock: Number(p.stock),
+          minStock: Number(p.minStock),
+          unit: p.unit,
+          step: p.step ? Number(p.step) : null,
+          piecesPerUnit: p.piecesPerUnit ?? null,
+          smallUnit: p.smallUnit ?? null,
+          smallPrice: p.smallPrice ? Number(p.smallPrice) : null,
+          isDeleted: p.isDeleted ?? false,
+          image: imageUrl ?? null,
+          updatedAt: clientUpdated,
+          storeId,
         },
       });
-    }
 
-    synced.push({ id: p.id, image });
+      if (costPriceUpdate !== undefined) {
+        await prisma.transactionItem.updateMany({
+          where: { productId: product.id },
+          data: { costPrice: costPriceUpdate },
+        });
+      }
+
+      synced.push({ id: p.id, image: product.image });
+    } catch (e: unknown) {
+      res.status(500).json({ error: toPrismaError(e) });
+      return;
+    }
   }
 
-  res.status(201).json({ synced });
+  res.json({ synced });
 }

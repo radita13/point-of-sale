@@ -17,22 +17,22 @@ function authHeaders(
 }
 
 async function ensureBucket(): Promise<void> {
-  const list: any = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const list = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     headers: authHeaders(),
   });
   if (!list.ok) {
-    throw new Error(`Gagal mencantumkan bucket storage: HTTP ${list.status}`);
+    throw new Error(`Failed to list storage buckets: HTTP ${list.status}`);
   }
   const buckets = (await list.json()) as Array<{ id: string; name: string }>;
   if (buckets.some((b) => b.id === BUCKET || b.name === BUCKET)) return;
 
-  const create: any = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const create = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
     method: "POST",
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
   });
   if (!create.ok) {
-    throw new Error(`Gagal membuat bucket storage: HTTP ${create.status}`);
+    throw new Error(`Failed to create storage bucket: HTTP ${create.status}`);
   }
 }
 
@@ -41,19 +41,19 @@ export async function uploadProductImage(
   productId: string,
 ): Promise<string> {
   if (!storageConfigured()) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi di backend");
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured on the backend");
   }
   const mime = dataUrl.match(/^data:([^;,]+)/)?.[1] ?? "";
   const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
   if (!allowedMimeTypes.includes(mime)) {
-    throw new Error("Format gambar tidak didukung (hanya JPEG, PNG, dan WebP)");
+    throw new Error("Unsupported image format (only JPEG, PNG, and WebP are allowed)");
   }
 
   const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
   const bytes = Buffer.from(base64, "base64");
 
   if (bytes.length > 5 * 1024 * 1024) {
-    throw new Error("Ukuran gambar melebihi batas 5MB");
+    throw new Error("Image size exceeds the 5MB limit");
   }
 
   const ext =
@@ -62,7 +62,7 @@ export async function uploadProductImage(
 
   await ensureBucket();
 
-  const upload: any = await fetch(
+  const upload = await fetch(
     `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`,
     {
       method: "PUT",
@@ -71,7 +71,7 @@ export async function uploadProductImage(
     },
   );
   if (!upload.ok) {
-    throw new Error(`Upload foto gagal: HTTP ${upload.status}`);
+    throw new Error(`Failed to upload image: HTTP ${upload.status}`);
   }
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }

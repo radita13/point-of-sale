@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { authGuard } from '../middleware/auth.js';
-import { asyncHandler, validate } from '../middleware/validate.js';
+import { authGuard } from '../middleware/auth';
+import { asyncHandler, validate } from '../middleware/validate';
 import {
   syncTransactions,
   getSyncStatus,
   getTransactions,
-} from '../controllers/transactions.controller.js';
+} from '../controllers/transactions.controller';
 import {
   syncPayloadSchema,
   syncStatusQuerySchema,

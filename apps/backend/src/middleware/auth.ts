@@ -1,20 +1,16 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
+import type { Request, Response, NextFunction } from "express";
 
 export interface SupabaseAuthResult {
   sub: string;
   email?: string | null;
 }
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-    interface Request {
-      auth?: SupabaseAuthResult;
-    }
-  }
-}
-
-export async function authGuard(req: any, res: any, next: any) {
+export async function authGuard(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void | Response> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Missing authorization token" });
@@ -42,11 +38,11 @@ export async function authGuard(req: any, res: any, next: any) {
       const expired = err instanceof jwt.TokenExpiredError;
       if (expired || !supabaseUrl) {
         console.warn(
-          `[auth] token HS256 ditolak: ${err instanceof Error ? err.message : String(err)}`,
+          `[auth] HS256 token rejected: ${err instanceof Error ? err.message : String(err)}`,
         );
         return res.status(401).json({
           error: expired
-            ? "Token telah kedaluwarsa, silakan login ulang"
+            ? "Token has expired, please log in again"
             : "Invalid or expired token",
         });
       }
@@ -70,7 +66,7 @@ export async function authGuard(req: any, res: any, next: any) {
         headers["apikey"] = anonKey;
       }
 
-      const response: any = await fetch(url.toString(), { headers });
+      const response = await fetch(url.toString(), { headers });
 
       if (response.ok) {
         const userData = (await response.json()) as {
@@ -87,16 +83,16 @@ export async function authGuard(req: any, res: any, next: any) {
       } else {
         const errText = await response.text().catch(() => "");
         console.warn(
-          `[auth] Supabase Auth API menolak token (${response.status}): ${errText}`,
+          `[auth] Supabase Auth API rejected token (${response.status}): ${errText}`,
         );
         if (response.status === 403 || response.status === 401) {
           return res.status(401).json({
-            error: "Sesi login telah berakhir atau dicabut, silakan login ulang",
+            error: "Session has expired or been revoked, please log in again",
           });
         }
       }
     } catch (fetchErr) {
-      console.error("[auth] Gagal menghubungi Supabase Auth API:", fetchErr);
+      console.error("[auth] Failed to connect to Supabase Auth API:", fetchErr);
     }
   }
 
