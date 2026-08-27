@@ -5,16 +5,11 @@ import express, {
   type Response,
 } from "express";
 import cors from "cors";
-import rateLimitModule from "express-rate-limit";
-const rateLimit = (
-  typeof rateLimitModule === "function"
-    ? rateLimitModule
-    : (rateLimitModule as any).default || rateLimitModule
-) as any;
-import productsRouter from "./routes/products.js";
-import inventoryRouter from "./routes/inventory.js";
-import transactionsRouter from "./routes/transactions.js";
-import storesRouter from "./routes/stores.js";
+import rateLimit from "express-rate-limit";
+import productsRouter from "./routes/products.routes";
+import inventoryRouter from "./routes/inventory.routes";
+import transactionsRouter from "./routes/transactions.routes";
+import storesRouter from "./routes/stores.routes";
 
 const app = express();
 
@@ -55,10 +50,10 @@ const syncLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-app.get("/health", (_req: any, res: any) => {
-  res.json({
-    status: "ok",
-    service: "point-of-sale-backend",
+app.get("/", (_req: Request, res: Response) => {
+  res.status(200).json({
+    message: "API Point Of Sale is running.",
+    data: null,
     time: new Date().toISOString(),
   });
 });
@@ -72,12 +67,15 @@ app.use("/api/v1/inventory", apiLimiter, inventoryRouter);
 app.use("/api/v1/transactions", apiLimiter, transactionsRouter);
 app.use("/api/v1/stores", apiLimiter, storesRouter);
 
-app.use((_req: any, res: any) => {
-  res.status(404).json({ error: "Route tidak ditemukan" });
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ status: "error", message: "Route not found." });
 });
-app.use((err: any, _req: any, res: any, _next: any) => {
+
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err);
-  res.status(500).json({ error: err.message || "Internal server error" });
+  res
+    .status(500)
+    .json({ status: "error", message: err.message || "Internal server error" });
 });
 
 export default app;
