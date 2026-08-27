@@ -1,6 +1,6 @@
 import type { RequestHandler, Request, Response, NextFunction } from "express";
 import { type ZodType, type ZodTypeDef } from "zod";
-import type { ValidatedRequest, TypedAsyncHandler } from "../types/http";
+import type { ValidatedRequest, TypedAsyncHandler } from "../types/http.js";
 
 export function validate<TOutput, TInput = unknown>(
   schema: ZodType<TOutput, ZodTypeDef, TInput>,

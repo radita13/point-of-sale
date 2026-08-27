@@ -1,10 +1,10 @@
 import type { Response } from "express";
-import { prisma } from "../db";
-import { toPrismaError } from "../lib/errors";
-import { requireStoreAccess } from "../middleware/store-access";
-import { uploadProductImage } from "../lib/storage";
-import type { ValidatedRequest } from "../types/http";
-import type { Prisma } from "../generated/client";
+import { prisma } from "../db.js";
+import { toPrismaError } from "../lib/errors.js";
+import { requireStoreAccess } from "../middleware/store-access.js";
+import { uploadProductImage } from "../lib/storage.js";
+import type { ValidatedRequest } from "../types/http.js";
+import type { Prisma } from "../generated/client/index.js";
 import type {
   GetProductsQuery,
   ProductSyncPayload,

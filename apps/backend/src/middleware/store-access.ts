@@ -1,12 +1,8 @@
 import type { Request, Response } from "express";
-import { prisma } from "../db";
-import type { Store } from "../generated/client";
-import "./auth";
+import { prisma } from "../db.js";
+import type { Store } from "../generated/client/index.js";
+import "./auth.js";
 
-/**
- * Resolves an existing store owned by the user, claims an unowned store,
- * or creates a default store for the authenticated user.
- */
 export async function resolveOrCreateUserStore(
   userId: string,
   userEmail?: string,
@@ -54,16 +50,17 @@ export async function requireStoreAccess(
   let targetStoreId = providedStoreId;
 
   if (!targetStoreId) {
-    const store = await resolveOrCreateUserStore(sub, req.auth?.email ?? undefined);
+    const store = await resolveOrCreateUserStore(
+      sub,
+      req.auth?.email ?? undefined,
+    );
     targetStoreId = store.id;
   }
 
   // Verify store access and ownership
   const store = await prisma.store.findUnique({ where: { id: targetStoreId } });
   if (!store) {
-    res
-      .status(404)
-      .json({ error: `Store with ID ${targetStoreId} not found` });
+    res.status(404).json({ error: `Store with ID ${targetStoreId} not found` });
     return { ok: false };
   }
 
@@ -77,14 +74,18 @@ export async function requireStoreAccess(
       where: { id: targetStoreId },
     });
     if (rechecked?.ownerId !== sub) {
-      res.status(403).json({ error: "Forbidden: You are not the owner of this store" });
+      res
+        .status(403)
+        .json({ error: "Forbidden: You are not the owner of this store" });
       return { ok: false };
     }
     return { ok: true, storeId: targetStoreId };
   }
 
   if (store.ownerId !== sub) {
-    res.status(403).json({ error: "Forbidden: You are not the owner of this store" });
+    res
+      .status(403)
+      .json({ error: "Forbidden: You are not the owner of this store" });
     return { ok: false };
   }
 

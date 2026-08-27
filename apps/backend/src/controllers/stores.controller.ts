@@ -1,6 +1,6 @@
 import type { Response } from "express";
-import type { ValidatedRequest } from "../types/http";
-import { resolveOrCreateUserStore } from "../middleware/store-access";
+import type { ValidatedRequest } from "../types/http.js";
+import { resolveOrCreateUserStore } from "../middleware/store-access.js";
 
 export async function getMyStore(
   req: ValidatedRequest,

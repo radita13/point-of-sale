@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { authGuard } from '../middleware/auth';
-import { asyncHandler, validate } from '../middleware/validate';
-import { getProducts, syncProducts } from '../controllers/products.controller';
+import { authGuard } from '../middleware/auth.js';
+import { asyncHandler, validate } from '../middleware/validate.js';
+import { getProducts, syncProducts } from '../controllers/products.controller.js';
 import { productSyncPayloadSchema, getProductsQuerySchema } from '@point-of-sale/shared';
 
 const router = Router();

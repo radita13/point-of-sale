@@ -6,10 +6,10 @@ import express, {
 } from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
-import productsRouter from "./routes/products.routes";
-import inventoryRouter from "./routes/inventory.routes";
-import transactionsRouter from "./routes/transactions.routes";
-import storesRouter from "./routes/stores.routes";
+import productsRouter from "./routes/products.routes.js";
+import inventoryRouter from "./routes/inventory.routes.js";
+import transactionsRouter from "./routes/transactions.routes.js";
+import storesRouter from "./routes/stores.routes.js";
 
 const app = express();
 
