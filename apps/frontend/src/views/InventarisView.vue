@@ -12,6 +12,7 @@ import {
 import { toast } from 'vue-sonner';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
+import Skeleton from '@/components/ui/Skeleton.vue';
 import { useInventory } from '@/composables/useInventory';
 import ProductFormModal from '@/components/inventaris/ProductFormModal.vue';
 import DeleteConfirmModal from '@/components/inventaris/DeleteConfirmModal.vue';
@@ -30,6 +31,7 @@ import {
 
 const {
   products,
+  isLoading,
   showModal,
   isEdit,
   form,
@@ -229,13 +231,13 @@ const table = useVueTable({
         <div class="relative overflow-hidden rounded-xl">
           <div
             v-if="canScrollLeft"
-            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-linear-to-r to-transparent"
           ></div>
 
           <div
             ref="scrollEl"
             @scroll="updateScrollState"
-            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            class="flex scrollbar-none items-center gap-1.5 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
           >
             <button
               v-for="cat in ['Semua', ...CATEGORIES]"
@@ -254,7 +256,7 @@ const table = useVueTable({
 
           <div
             v-if="canScrollRight"
-            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-linear-to-l to-transparent"
           ></div>
         </div>
       </div>
@@ -284,7 +286,8 @@ const table = useVueTable({
               </th>
             </tr>
           </thead>
-          <tbody class="divide-ink divide-y-2">
+          <Skeleton v-if="isLoading" type="table-rows" :count="10" :columns="8" />
+          <tbody v-else class="divide-ink divide-y-2">
             <tr v-for="row in table.getRowModel().rows" :key="row.id" class="hover:bg-canvas">
               <td v-for="cell in row.getVisibleCells()" :key="cell.id" class="p-3">
                 <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />

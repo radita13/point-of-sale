@@ -41,10 +41,14 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center p-4">
-    <div class="w-full max-w-md rounded-2xl border-2 border-ink bg-surface p-6 shadow-hard-xl sm:p-8">
+  <div class="flex min-h-dvh items-center justify-center p-4">
+    <div
+      class="border-ink bg-surface shadow-hard-xl w-full max-w-md rounded-2xl border-2 p-6 sm:p-8"
+    >
       <div class="mb-6 text-center">
-        <div class="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-ink bg-brand text-white shadow-hard-md">
+        <div
+          class="border-ink bg-brand shadow-hard-md mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border-2 text-white"
+        >
           <Store class="h-8 w-8" />
         </div>
         <h1 class="text-2xl font-extrabold tracking-tight">Point of Sale</h1>
@@ -52,27 +56,20 @@ async function handleLogin() {
 
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div>
-          <label class="mb-1 block text-xs font-extrabold uppercase tracking-wider">Email</label>
+          <label class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Email</label>
           <Input v-model="email" type="email" placeholder="kasir@pointofsale.id" />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-extrabold uppercase tracking-wider">Password</label>
+          <label class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Password</label>
           <Input v-model="password" type="password" placeholder="••••••••" />
         </div>
 
-        <p v-if="error" class="text-center text-xs font-bold text-card-coral">{{ error }}</p>
+        <p v-if="error" class="text-card-coral text-center text-xs font-bold">{{ error }}</p>
 
         <Button type="submit" class="w-full" :disabled="loading">
           {{ loading ? 'Memproses...' : 'Masuk' }}
         </Button>
       </form>
-
-      <div v-if="!supabase" class="mt-6 border-t-2 border-ink pt-4 text-center">
-        <p class="mb-2 text-[11px] font-bold text-ink/50">Mode pengembangan (Supabase belum dikonfigurasi):</p>
-        <Button variant="secondary" class="w-full" @click="auth.loginDemo(); router.push({ name: 'kasir' })">
-          Masuk Demo Tanpa Login
-        </Button>
-      </div>
     </div>
   </div>
 </template>

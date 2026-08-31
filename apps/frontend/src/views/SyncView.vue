@@ -143,8 +143,7 @@ async function handleRetrySingle(tx: Transaction) {
 </script>
 
 <template>
-  <div class="bg-canvas min-h-[100dvh]">
-    <!-- Header halaman terpisah -->
+  <div class="bg-canvas min-h-dvh">
     <header class="mx-auto max-w-7xl px-3 pt-3 sm:px-6">
       <div
         class="border-ink bg-surface shadow-hard-md flex items-center justify-between gap-3 rounded-2xl border-2 p-3 sm:p-4"
@@ -182,8 +181,8 @@ async function handleRetrySingle(tx: Transaction) {
               Terakhir gagal: {{ sync.lastError }}
             </p>
             <p v-if="isAuthError" class="text-card-coral mt-1 text-[11px] font-bold">
-              Sesi login kedaluwarsa/tidak valid — keluar lalu masuk lagi lewat Supabase untuk
-              mendapatkan token baru.
+              Sesi login kedaluwarsa/tidak valid. Silakan keluar lalu masuk lagi lewat Supabase
+              untuk mendapatkan token baru.
             </p>
           </div>
           <Button
@@ -426,7 +425,7 @@ async function handleRetrySingle(tx: Transaction) {
         <!-- Confirm hapus data lokal -->
         <div
           v-if="showClearConfirm"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
         >
           <div
             class="border-ink bg-surface shadow-hard-xl w-full max-w-sm rounded-2xl border-2 p-5 text-center"
@@ -454,7 +453,7 @@ async function handleRetrySingle(tx: Transaction) {
         <!-- Modal Detail Error Transaksi -->
         <div
           v-if="selectedErrorTx"
-          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
         >
           <div
             class="border-ink bg-surface shadow-hard-xl w-full max-w-lg rounded-2xl border-2 p-5 font-sans"

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { LogOut, RefreshCw, Settings, Store, X, Save } from 'lucide-vue-next';
-import { useAuthStore, useNetworkStore } from '@/stores';
+import { LogOut, RefreshCw, Settings, Store, X, Save, Lock, Unlock } from 'lucide-vue-next';
+import { useAuthStore, useNetworkStore, useRoleStore } from '@/stores';
 import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
 import { useCartStore } from '@/stores/cart';
@@ -16,6 +16,82 @@ const network = useNetworkStore();
 const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
 const cart = useCartStore();
+const role = useRoleStore();
+
+const showPinModal = ref(false);
+const pinInput = ref('');
+const pinError = ref('');
+const showSetPinModal = ref(false);
+const newPin6Input = ref('');
+const setPinError = ref('');
+const oldPinInput = ref('');
+const newPinInput = ref('');
+const changePinError = ref('');
+
+function handleToggleCashierMode() {
+  open.value = false;
+  if (role.isCashierMode) {
+    pinInput.value = '';
+    pinError.value = '';
+    showPinModal.value = true;
+  } else {
+    if (!role.hasPinSet) {
+      newPin6Input.value = '';
+      setPinError.value = '';
+      showSetPinModal.value = true;
+    } else {
+      role.enableCashierMode();
+      toast.info('Mode Kasir Aktif. Menu sensitif (Inventaris, Laporan, AI) telah dikunci.');
+      if (route.meta.ownerOnly) {
+        router.push({ name: 'kasir' });
+      }
+    }
+  }
+}
+
+async function confirmSetInitialPin() {
+  if (!/^\d{6}$/.test(newPin6Input.value)) {
+    setPinError.value = 'PIN harus berupa 6 digit angka!';
+    return;
+  }
+  const ok = await role.setInitialPin(newPin6Input.value);
+  if (ok) {
+    showSetPinModal.value = false;
+    role.enableCashierMode();
+    toast.success('PIN 6 Digit berhasil dibuat & Mode Kasir Aktif!');
+    if (route.meta.ownerOnly) {
+      router.push({ name: 'kasir' });
+    }
+  } else {
+    setPinError.value = 'Gagal menyimpan PIN. Masukkan 6 digit angka.';
+  }
+}
+
+async function confirmUnlockCashierMode() {
+  const ok = await role.disableCashierMode(pinInput.value);
+  if (ok) {
+    showPinModal.value = false;
+    toast.success('Kembali ke Mode Owner (Akses Penuh).');
+  } else {
+    pinError.value = 'PIN Salah! Masukkan 6 digit PIN Owner yang benar.';
+  }
+}
+
+async function handleSaveNewPin() {
+  if (!/^\d{6}$/.test(newPinInput.value)) {
+    changePinError.value = 'PIN Baru harus 6 digit angka!';
+    return;
+  }
+  const ok = await role.setOwnerPin(oldPinInput.value, newPinInput.value);
+  if (ok) {
+    oldPinInput.value = '';
+    newPinInput.value = '';
+    changePinError.value = '';
+    toast.success('PIN Owner 6-digit berhasil diperbarui!');
+  } else {
+    changePinError.value = 'PIN Lama salah!';
+  }
+}
 
 const hasActiveCart = computed(() => {
   return route.name === 'kasir' && cart.items.length > 0;
@@ -115,6 +191,27 @@ async function handleLogout() {
         <div class="space-y-1.5 p-2">
           <button
             type="button"
+            @click="handleToggleCashierMode"
+            class="neo-press border-ink bg-canvas flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left"
+          >
+            <span
+              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white"
+              :class="role.isCashierMode ? 'bg-card-coral' : 'bg-card-green'"
+            >
+              <Lock v-if="role.isCashierMode" class="h-4 w-4" />
+              <Unlock v-else class="h-4 w-4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-xs font-extrabold">{{ role.isCashierMode ? 'Mode Kasir (Aktif)' : 'Mode Owner (Akses Penuh)' }}</span>
+              <span class="block truncate text-[10px] font-semibold text-gray-600">
+                {{ role.isCashierMode ? 'Klik untuk kembali ke Mode Owner' : 'Kunci menu sensitif untuk kasir' }}
+              </span>
+            </span>
+          </button>
+
+          <button
+            v-if="!role.isCashierMode"
+            type="button"
             @click="openProfileModal"
             class="neo-press border-ink bg-canvas flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-2 p-2.5 text-left"
           >
@@ -132,6 +229,7 @@ async function handleLogout() {
           </button>
 
           <button
+            v-if="!role.isCashierMode"
             type="button"
             @click="handleSync"
             :disabled="sync.syncing"
@@ -191,7 +289,7 @@ async function handleLogout() {
     <!-- Modal Form Profil Toko -->
     <div
       v-if="showProfileModal"
-      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
     >
       <div
         class="border-ink bg-surface shadow-hard-xl w-full max-w-md rounded-2xl border-2 p-5 text-left sm:p-6"
@@ -242,6 +340,34 @@ async function handleLogout() {
             />
           </div>
 
+          <div class="border-ink border-t-2 pt-2">
+            <label class="mb-1 block">PIN Modus Owner (Buka Kunci Kasir)</label>
+            <div class="flex gap-2">
+              <input
+                v-model="oldPinInput"
+                type="password"
+                maxlength="6"
+                placeholder="PIN Lama (6 digit)"
+                class="border-ink bg-canvas w-1/2 rounded-xl border-2 px-2 py-1.5 text-xs font-extrabold"
+              />
+              <input
+                v-model="newPinInput"
+                type="password"
+                maxlength="6"
+                placeholder="PIN Baru (6 digit)"
+                class="border-ink bg-canvas w-1/2 rounded-xl border-2 px-2 py-1.5 text-xs font-extrabold"
+              />
+            </div>
+            <p v-if="changePinError" class="mt-1 text-[10px] font-bold text-card-coral">{{ changePinError }}</p>
+            <button
+              type="button"
+              @click="handleSaveNewPin"
+              class="neo-press border-ink bg-canvas mt-1.5 w-full rounded-xl border-2 py-1 text-[11px] font-extrabold"
+            >
+              Ubah PIN Owner
+            </button>
+          </div>
+
           <div>
             <label class="mb-1 block">Pesan Struk (Footer)</label>
             <textarea
@@ -265,6 +391,95 @@ async function handleLogout() {
               class="neo-press border-ink bg-brand shadow-hard-sm flex items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-xs font-extrabold text-white"
             >
               <Save class="h-4 w-4" /> Simpan Profil
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- Modal Set Initial PIN Owner 6 Digit -->
+    <div
+      v-if="showSetPinModal"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
+    >
+      <div
+        class="border-ink bg-surface shadow-hard-xl w-full max-w-xs rounded-2xl border-2 p-5 text-center"
+      >
+        <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-card-green text-white shadow-hard-sm">
+          <Lock class="h-6 w-6" />
+        </div>
+        <h3 class="text-sm font-extrabold">Buat PIN Owner (6 Digit)</h3>
+        <p class="mb-4 text-[11px] font-bold text-gray-500">PIN ini digunakan untuk membuka kembali Mode Owner dari Mode Kasir.</p>
+
+        <form @submit.prevent="confirmSetInitialPin" class="space-y-3">
+          <input
+            v-model="newPin6Input"
+            type="password"
+            maxlength="6"
+            pattern="[0-9]*"
+            inputmode="numeric"
+            placeholder="Contoh: 123456"
+            class="border-ink bg-canvas focus:ring-brand w-full text-center tracking-widest rounded-xl border-2 px-3 py-2 text-base font-extrabold focus:ring-2 focus:outline-none"
+            autofocus
+          />
+          <p v-if="setPinError" class="text-[11px] font-bold text-card-coral">{{ setPinError }}</p>
+
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button
+              type="button"
+              @click="showSetPinModal = false"
+              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="neo-press border-ink bg-brand shadow-hard-sm rounded-xl border-2 py-2 text-xs font-extrabold text-white"
+            >
+              Simpan &amp; Aktifkan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Verification PIN Owner -->
+    <div
+      v-if="showPinModal"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
+    >
+      <div
+        class="border-ink bg-surface shadow-hard-xl w-full max-w-xs rounded-2xl border-2 p-5 text-center"
+      >
+        <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-card-coral text-white shadow-hard-sm">
+          <Lock class="h-6 w-6" />
+        </div>
+        <h3 class="text-sm font-extrabold">Masukkan PIN Owner</h3>
+        <p class="mb-4 text-[11px] font-bold text-gray-500">Ketik PIN untuk kembali ke Mode Owner</p>
+
+        <form @submit.prevent="confirmUnlockCashierMode" class="space-y-3">
+          <input
+            v-model="pinInput"
+            type="password"
+            maxlength="6"
+            placeholder="PIN 6 Digit"
+            class="border-ink bg-canvas focus:ring-brand w-full text-center rounded-xl border-2 px-3 py-2 text-sm font-extrabold focus:ring-2 focus:outline-none"
+            autofocus
+          />
+          <p v-if="pinError" class="text-[11px] font-bold text-card-coral">{{ pinError }}</p>
+
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button
+              type="button"
+              @click="showPinModal = false"
+              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="neo-press border-ink bg-brand shadow-hard-sm rounded-xl border-2 py-2 text-xs font-extrabold text-white"
+            >
+              Buka Kunci
             </button>
           </div>
         </form>

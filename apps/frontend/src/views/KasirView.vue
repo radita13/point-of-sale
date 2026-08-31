@@ -25,10 +25,14 @@ import { useStoreSettingsStore } from '@/stores/storeSettings';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import Input from '@/components/ui/Input.vue';
+import Skeleton from '@/components/ui/Skeleton.vue';
 import { useAuthStore } from '@/stores';
 import { useRouter } from 'vue-router';
 import { CATEGORIES, getCategoryCardColor } from '@/constants/product';
-import BarcodeScannerModal from '@/components/kasir/BarcodeScannerModal.vue';
+import { defineAsyncComponent } from 'vue';
+const BarcodeScannerModal = defineAsyncComponent(
+  () => import('@/components/kasir/BarcodeScannerModal.vue')
+);
 
 const router = useRouter();
 
@@ -43,11 +47,15 @@ const displayPhone = computed(() => {
 });
 
 const products = ref<Product[]>([]);
+const isLoadingProducts = ref(true);
 const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const scrollEl = ref<HTMLDivElement | null>(null);
 const canScrollLeft = ref(false);
 const canScrollRight = ref(false);
+let isDragging = false;
+let startX = 0;
+let startScrollLeft = 0;
 
 function updateScrollState() {
   const el = scrollEl.value;
@@ -55,6 +63,36 @@ function updateScrollState() {
   const { scrollLeft, scrollWidth, clientWidth } = el;
   canScrollLeft.value = scrollLeft > 1;
   canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+}
+
+function handleWheelScroll(e: WheelEvent) {
+  const el = scrollEl.value;
+  if (!el) return;
+  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+    el.scrollLeft += e.deltaY;
+  }
+}
+
+function onMouseDown(e: MouseEvent) {
+  const el = scrollEl.value;
+  if (!el) return;
+  isDragging = true;
+  startX = e.pageX - el.offsetLeft;
+  startScrollLeft = el.scrollLeft;
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (!isDragging) return;
+  const el = scrollEl.value;
+  if (!el) return;
+  e.preventDefault();
+  const x = e.pageX - el.offsetLeft;
+  const walk = (x - startX) * 1.5;
+  el.scrollLeft = startScrollLeft - walk;
+}
+
+function onMouseUpOrLeave() {
+  isDragging = false;
 }
 
 onMounted(() => {
@@ -99,22 +137,37 @@ function cardColor(p: Product): string {
   return getCategoryCardColor(p);
 }
 
-async function loadProducts() {
-  products.value = (await db.products.toArray()).filter((p) => !p.isDeleted);
+async function loadProducts(isInitial = false) {
+  try {
+    const startTime = Date.now();
+    const data = (await db.products.toArray()).filter((p) => !p.isDeleted);
+    if (isInitial) {
+      const elapsed = Date.now() - startTime;
+      const minDisplayTime = 500;
+      if (elapsed < minDisplayTime) {
+        await new Promise((resolve) => setTimeout(resolve, minDisplayTime - elapsed));
+      }
+    }
+    products.value = data;
+  } finally {
+    isLoadingProducts.value = false;
+  }
 }
 
-onMounted(async () => {
+onMounted(() => {
   unsubscribeProducts = sync.onProductsUpdated(() => {
-    loadProducts();
+    loadProducts(false);
   });
-  if (navigator.onLine && (await db.products.count()) === 0) {
-    const restored = await sync.restoreProductsFromServer();
-    if (restored > 0) {
-      await loadProducts();
-      return;
-    }
+  loadProducts(true);
+  if (navigator.onLine) {
+    db.products.count().then((count) => {
+      if (count === 0) {
+        sync.restoreProductsFromServer().then((restored) => {
+          if (restored > 0) loadProducts(false);
+        });
+      }
+    });
   }
-  await loadProducts();
 });
 
 const filteredProducts = computed(() => {
@@ -136,12 +189,10 @@ function quickStep(p: Product): number {
   return p.unit === 'kg' || p.unit === 'liter' ? 0.5 : 1;
 }
 
-/** Barang utuh biasa (step=1, tanpa eceran) → cukup satu tombol kasir. */
 function isUnitOnly(p: Product): boolean {
   return !isPieces(p) && quickStep(p) === 1;
 }
 
-/** Step tombol +/- keranjang: tier bat → per batang, selain itu per satuan tampilan. */
 function qtyStep(it: { product: Product; pieceMode?: boolean }): number {
   if (isPieces(it.product)) return it.pieceMode ? quickStep(it.product) : 1;
   return quickStep(it.product);
@@ -286,8 +337,10 @@ function printNow() {
 
 async function connectPrinter() {
   try {
-    await printer.connect();
-    toast.success(`Printer terhubung: ${printer.deviceName.value}`);
+    const name = await printer.connect();
+    if (name) {
+      toast.success(`Printer terhubung: ${name}`);
+    }
   } catch (err) {
     toast.error(err instanceof Error ? err.message : 'Gagal menghubungkan printer.');
   }
@@ -368,13 +421,18 @@ function handleBarcodeScanned(skuText: string) {
         <div class="relative overflow-hidden rounded-xl">
           <div
             v-if="canScrollLeft"
-            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-linear-to-r to-transparent"
           ></div>
 
           <div
             ref="scrollEl"
             @scroll="updateScrollState"
-            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            @wheel.passive="handleWheelScroll"
+            @mousedown="onMouseDown"
+            @mousemove="onMouseMove"
+            @mouseup="onMouseUpOrLeave"
+            @mouseleave="onMouseUpOrLeave"
+            class="flex cursor-grab scrollbar-none items-center gap-1.5 overflow-x-auto py-1 select-none active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <button
               v-for="cat in CATEGORIES"
@@ -389,20 +447,23 @@ function handleBarcodeScanned(skuText: string) {
 
           <div
             v-if="canScrollRight"
-            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-linear-to-l to-transparent"
           ></div>
         </div>
       </div>
 
+      <!-- Loading Skeleton State -->
+      <Skeleton v-if="isLoadingProducts" type="card" :count="6" />
+
       <div
-        v-if="filteredProducts.length === 0"
+        v-else-if="filteredProducts.length === 0"
         class="border-ink bg-surface rounded-2xl border-2 p-10 text-center"
       >
         <PackageOpen class="text-ink/30 mx-auto mb-2 h-10 w-10" />
         <p class="text-sm font-bold">Tidak ada produk ditemukan.</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
+      <div v-else class="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
         <div
           v-for="p in filteredProducts"
           :key="p.id"
@@ -700,7 +761,7 @@ function handleBarcodeScanned(skuText: string) {
     <!-- Mobile bottom sheet -->
     <div
       v-if="showMobileCart"
-      class="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm lg:hidden"
+      class="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 lg:hidden"
     >
       <div
         class="border-ink bg-surface shadow-hard-xl flex max-h-[85vh] flex-col justify-between rounded-t-3xl border-x-2 border-t-2 p-4"
@@ -912,7 +973,7 @@ function handleBarcodeScanned(skuText: string) {
     <!-- Receipt modal -->
     <div
       v-if="showReceipt && lastReceipt"
-      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
     >
       <div
         class="border-ink shadow-hard-xl w-full max-w-sm rounded-2xl border-2 bg-white p-6 font-mono text-xs"

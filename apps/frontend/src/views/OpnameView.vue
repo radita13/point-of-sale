@@ -25,6 +25,9 @@ const sync = useSyncStore();
 const products = ref<Product[]>([]);
 const changes = ref<Record<string, string>>({});
 
+type StockStatus = 'all' | 'safe' | 'low' | 'out';
+const selectedStockStatus = ref<StockStatus>('all');
+
 const searchQuery = ref('');
 const selectedCategory = ref('Semua');
 const currentPage = ref(1);
@@ -47,12 +50,33 @@ async function refresh() {
   products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
 }
 
+const stockCounts = computed(() => {
+  const all = products.value.length;
+  let outCount = 0;
+  let lowCount = 0;
+  let safeCount = 0;
+  for (const p of products.value) {
+    if (p.stock <= 0) outCount++;
+    else if (p.stock <= p.minStock) lowCount++;
+    else safeCount++;
+  }
+  return { all, safe: safeCount, low: lowCount, out: outCount };
+});
+
 function updateScrollState() {
   const el = scrollEl.value;
   if (!el) return;
   const { scrollLeft, scrollWidth, clientWidth } = el;
   canScrollLeft.value = scrollLeft > 1;
   canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
+}
+
+function handleWheelScroll(e: WheelEvent) {
+  const el = scrollEl.value;
+  if (!el) return;
+  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+    el.scrollLeft += e.deltaY;
+  }
 }
 
 onMounted(() => {
@@ -70,11 +94,17 @@ const filteredProducts = computed(() => {
   return products.value.filter((p) => {
     const matchCat = selectedCategory.value === 'Semua' || p.category === selectedCategory.value;
     const matchSearch = !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
-    return matchCat && matchSearch;
+
+    let matchStock = true;
+    if (selectedStockStatus.value === 'safe') matchStock = p.stock > p.minStock;
+    else if (selectedStockStatus.value === 'low') matchStock = p.stock > 0 && p.stock <= p.minStock;
+    else if (selectedStockStatus.value === 'out') matchStock = p.stock <= 0;
+
+    return matchCat && matchSearch && matchStock;
   });
 });
 
-watch([searchQuery, selectedCategory, pageSize], () => {
+watch([searchQuery, selectedCategory, selectedStockStatus, pageSize], () => {
   currentPage.value = 1;
 });
 
@@ -151,7 +181,7 @@ async function saveOpname() {
     }
   } else {
     toast.success(
-      `${adjustments.length} koreksi stok disimpan lokal (offline) — akan tersinkron otomatis.`
+      `${adjustments.length} koreksi stok disimpan lokal (offline), akan tersinkron otomatis.`
     );
   }
   changes.value = {};
@@ -162,7 +192,6 @@ void sync;
 
 <template>
   <div class="space-y-4">
-    <!-- Header Opname -->
     <div
       class="border-ink bg-surface shadow-hard-md flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 p-4"
     >
@@ -186,7 +215,7 @@ void sync;
       </div>
     </div>
 
-    <!-- Search & Category Card Terpisah seperti Inventaris -->
+    <!-- Search & Category Card -->
     <Card>
       <div class="flex flex-col gap-3 p-4">
         <div class="relative">
@@ -198,16 +227,19 @@ void sync;
             class="pl-11"
           />
         </div>
+
+        <!-- Filter Kategori -->
         <div class="relative overflow-hidden rounded-xl">
           <div
             v-if="canScrollLeft"
-            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r to-transparent"
+            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-linear-to-r to-transparent"
           ></div>
 
           <div
             ref="scrollEl"
             @scroll="updateScrollState"
-            class="flex items-center gap-1.5 overflow-x-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            @wheel.passive="handleWheelScroll"
+            class="flex scrollbar-none items-center gap-1.5 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
           >
             <button
               v-for="cat in CATEGORIES"
@@ -226,8 +258,117 @@ void sync;
 
           <div
             v-if="canScrollRight"
-            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l to-transparent"
+            class="from-surface g-linear-to-l pointer-events-none absolute inset-y-0 right-0 z-10 w-8 to-transparent"
           ></div>
+        </div>
+      </div>
+    </Card>
+
+    <!-- Filter Status Stok -->
+    <Card>
+      <div class="p-4">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <button
+            @click="selectedStockStatus = 'all'"
+            :class="
+              selectedStockStatus === 'all'
+                ? 'border-ink bg-ink shadow-hard-xs text-white'
+                : 'border-ink/40 bg-canvas text-ink hover:border-ink'
+            "
+            class="neo-press flex cursor-pointer items-center justify-between rounded-xl border-2 px-3 py-2 text-xs font-black transition-all"
+          >
+            <span>Semua Stok</span>
+            <span
+              :class="
+                selectedStockStatus === 'all' ? 'bg-white/20 text-white' : 'bg-ink/10 text-ink'
+              "
+              class="rounded-full px-2 py-0.5 text-[10px]"
+            >
+              {{ stockCounts.all }}
+            </span>
+          </button>
+
+          <button
+            @click="selectedStockStatus = 'safe'"
+            :class="
+              selectedStockStatus === 'safe'
+                ? 'border-ink bg-card-green shadow-hard-xs text-white'
+                : 'border-ink/40 bg-canvas text-ink hover:border-ink'
+            "
+            class="neo-press flex cursor-pointer items-center justify-between rounded-xl border-2 px-3 py-2 text-xs font-black transition-all"
+          >
+            <span class="flex items-center gap-1.5">
+              <span
+                class="h-2 w-2 rounded-full bg-green-500"
+                :class="{ 'bg-white': selectedStockStatus === 'safe' }"
+              />
+              Aman
+            </span>
+            <span
+              :class="
+                selectedStockStatus === 'safe'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-green-100 text-green-800'
+              "
+              class="rounded-full px-2 py-0.5 text-[10px]"
+            >
+              {{ stockCounts.safe }}
+            </span>
+          </button>
+
+          <button
+            @click="selectedStockStatus = 'low'"
+            :class="
+              selectedStockStatus === 'low'
+                ? 'border-ink bg-card-yellow shadow-hard-xs text-white'
+                : 'border-ink/40 bg-canvas text-ink hover:border-ink'
+            "
+            class="neo-press flex cursor-pointer items-center justify-between rounded-xl border-2 px-3 py-2 text-xs font-black transition-all"
+          >
+            <span class="flex items-center gap-1.5">
+              <span
+                class="h-2 w-2 rounded-full bg-amber-500"
+                :class="{ 'bg-white': selectedStockStatus === 'low' }"
+              />
+              Menipis
+            </span>
+            <span
+              :class="
+                selectedStockStatus === 'low'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-100 text-amber-800'
+              "
+              class="rounded-full px-2 py-0.5 text-[10px]"
+            >
+              {{ stockCounts.low }}
+            </span>
+          </button>
+
+          <button
+            @click="selectedStockStatus = 'out'"
+            :class="
+              selectedStockStatus === 'out'
+                ? 'border-ink bg-card-coral shadow-hard-xs text-white'
+                : 'border-ink/40 bg-canvas text-ink hover:border-ink'
+            "
+            class="neo-press flex cursor-pointer items-center justify-between rounded-xl border-2 px-3 py-2 text-xs font-black transition-all"
+          >
+            <span class="flex items-center gap-1.5">
+              <span
+                class="h-2 w-2 rounded-full bg-red-500"
+                :class="{ 'bg-white': selectedStockStatus === 'out' }"
+              />
+              Habis
+            </span>
+            <span
+              :class="
+                selectedStockStatus === 'out' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800'
+              "
+              class="rounded-full px-2 py-0.5 text-[10px]"
+            >
+              {{ stockCounts.out }}
+            </span>
+          </button>
         </div>
       </div>
     </Card>

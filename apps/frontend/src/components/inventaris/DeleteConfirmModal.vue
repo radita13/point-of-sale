@@ -16,7 +16,7 @@ const emit = defineEmits<{
 <template>
   <div
     v-if="open && target"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
   >
     <div
       class="border-ink bg-surface shadow-hard-xl w-full max-w-sm rounded-2xl border-2 p-5 text-center"

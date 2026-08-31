@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, defineAsyncComponent } from 'vue';
 import { X, RefreshCw, Camera, Package } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import Button from '@/components/ui/Button.vue';
 import Select from '@/components/ui/Select.vue';
 import Input from '@/components/ui/Input.vue';
 import Label from '@/components/ui/Label.vue';
-import BarcodeScannerModal from '@/components/kasir/BarcodeScannerModal.vue';
 import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product';
+const BarcodeScannerModal = defineAsyncComponent(
+  () => import('@/components/kasir/BarcodeScannerModal.vue')
+);
 
 const props = defineProps<{
   open: boolean;
@@ -37,10 +39,7 @@ function handleFileChange(event: Event) {
 </script>
 
 <template>
-  <div
-    v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-  >
+  <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
     <div
       class="neo-scroll border-ink bg-surface shadow-hard-xl max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border-2 p-5 sm:p-6"
     >
@@ -163,7 +162,7 @@ function handleFileChange(event: Event) {
         <!-- Tier Eceran (Optional) -->
         <div class="border-ink bg-canvas rounded-xl border-2 p-3">
           <p class="mb-2 text-[10px] font-extrabold tracking-wider text-gray-500 uppercase">
-            Jual Eceran (per batang) — opsional
+            Jual Eceran (per batang) (opsional)
           </p>
           <div class="grid grid-cols-2 gap-3">
             <div>

@@ -181,7 +181,7 @@ function handleClose() {
   <Teleport to="body">
     <div
       v-if="open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
     >
       <div
         class="border-ink bg-surface shadow-hard-lg relative flex w-full max-w-md flex-col overflow-hidden rounded-2xl border-2 p-5"

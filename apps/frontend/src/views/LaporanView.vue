@@ -130,7 +130,6 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-4">
-    <!-- Header Laporan & Filter Periode -->
     <div
       class="border-ink bg-surface shadow-hard-md flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 p-4"
     >
@@ -280,7 +279,6 @@ onMounted(async () => {
             {{ Math.min(topProductsPage * 10, productSalesSummary.length) }} /
             {{ productSalesSummary.length }}
           </div>
-          <!-- <span>{{ topProductsPage }} - {{ totalTopProductsPages }}</span> -->
 
           <div class="flex items-center gap-1.5 pr-14 sm:pr-0">
             <Button
@@ -373,9 +371,9 @@ onMounted(async () => {
                   variant="secondary"
                   size="sm"
                   @click="openReceiptModal(tx)"
-                  class="cursor-pointer text-[11px] font-extrabold h-7 px-2"
+                  class="h-7 cursor-pointer px-2 text-[11px] font-extrabold"
                 >
-                  <ReceiptText class="h-3.5 w-3.5 text-brand" />
+                  <ReceiptText class="text-brand h-3.5 w-3.5" />
                   <span>Detail Struk</span>
                 </Button>
               </div>
@@ -383,7 +381,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Pagination Controls (Neo-Brutalism Style) -->
+        <!-- Pagination Controls Riwayat Transaksi -->
         <div
           v-if="filteredTransactions.length > 0"
           class="border-ink flex items-center justify-between border-t-2 pt-3 text-xs font-extrabold"
@@ -423,7 +421,7 @@ onMounted(async () => {
     <!-- Receipt Modal -->
     <div
       v-if="showReceiptModal && selectedTx"
-      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
     >
       <div
         class="border-ink shadow-hard-xl w-full max-w-sm rounded-2xl border-2 bg-white p-6 font-mono text-xs"
@@ -445,7 +443,8 @@ onMounted(async () => {
             <span>No. Nota:</span><span class="font-bold">{{ selectedTx.invoiceNo }}</span>
           </div>
           <div class="flex justify-between">
-            <span>Tanggal:</span><span>{{ new Date(selectedTx.timestamp).toLocaleString('id-ID') }}</span>
+            <span>Tanggal:</span
+            ><span>{{ new Date(selectedTx.timestamp).toLocaleString('id-ID') }}</span>
           </div>
         </div>
 
@@ -463,7 +462,8 @@ onMounted(async () => {
 
         <div class="mb-4 space-y-1 text-[11px] font-bold">
           <div class="flex justify-between">
-            <span>TOTAL:</span><span class="text-sm">Rp {{ formatPrice(selectedTx.finalAmount) }}</span>
+            <span>TOTAL:</span
+            ><span class="text-sm">Rp {{ formatPrice(selectedTx.finalAmount) }}</span>
           </div>
           <div class="flex justify-between">
             <span>BAYAR (CASH):</span><span>Rp {{ formatPrice(selectedTx.payAmount) }}</span>

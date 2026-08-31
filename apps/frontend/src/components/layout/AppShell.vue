@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Store, Package, ClipboardCheck, BarChart3, Sparkles } from 'lucide-vue-next';
 import Badge from '@/components/ui/Badge.vue';
 import SettingsMenu from '@/components/layout/SettingsMenu.vue';
-import { useNetworkStore, useAuthStore } from '@/stores';
+import { useNetworkStore, useAuthStore, useRoleStore } from '@/stores';
 import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
 
@@ -14,6 +14,7 @@ const network = useNetworkStore();
 const auth = useAuthStore();
 const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
+const role = useRoleStore();
 
 const displayOwnerName = computed(() => {
   const supabaseName = auth.userMetadata?.fullName?.trim();
@@ -24,36 +25,40 @@ const displayOwnerName = computed(() => {
 });
 let syncTimer: number | undefined;
 
-function handleOnline() {
-  network.setOnline(true);
-  sync.refreshCount();
-  sync.runSync();
-}
-function handleOffline() {
-  network.setOnline(false);
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible' && network.isOnline) {
+    sync.runSync();
+  }
 }
 
 onBeforeMount(() => {
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('offline', handleOffline);
   sync.refreshCount();
   syncTimer = window.setInterval(() => {
-    if (navigator.onLine) sync.runSync();
+    if (document.visibilityState === 'visible' && network.isOnline) {
+      sync.runSync();
+    }
   }, 30_000);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 onUnmounted(() => {
-  window.removeEventListener('online', handleOnline);
-  window.removeEventListener('offline', handleOffline);
   if (syncTimer) window.clearInterval(syncTimer);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
-const tabs = [
-  { key: 'kasir', label: 'Kasir', icon: Store },
-  { key: 'inventaris', label: 'Inventaris', icon: Package },
-  { key: 'opname', label: 'Opname', icon: ClipboardCheck },
-  { key: 'laporan', label: 'Laporan', icon: BarChart3 },
-  { key: 'ai', label: 'Asisten AI', icon: Sparkles },
+const allTabs = [
+  { key: 'kasir', label: 'Kasir', icon: Store, ownerOnly: false },
+  { key: 'inventaris', label: 'Inventaris', icon: Package, ownerOnly: true },
+  { key: 'opname', label: 'Opname', icon: ClipboardCheck, ownerOnly: false },
+  { key: 'laporan', label: 'Laporan', icon: BarChart3, ownerOnly: true },
+  { key: 'ai', label: 'Asisten AI', icon: Sparkles, ownerOnly: true },
 ];
+
+const tabs = computed(() => {
+  if (role.isCashierMode) {
+    return allTabs.filter((t) => !t.ownerOnly);
+  }
+  return allTabs;
+});
 
 const activeTab = computed(() => route.name as string);
 
@@ -94,8 +99,8 @@ function go(key: string) {
             <h1 class="text-base font-extrabold sm:text-lg">
               {{ storeSettings.settings.storeName }}
             </h1>
-            <p class="text-ink/50 text-[11px] font-bold">
-              <span class="text-ink/70 font-extrabold">Owner: </span>
+            <p class="text-ink/75 text-[11px] font-bold">
+              <span class="text-ink font-extrabold">Owner: </span>
               {{ displayOwnerName }}
             </p>
           </div>

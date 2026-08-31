@@ -21,27 +21,39 @@ export function useBluetoothPrinter() {
   async function connect(): Promise<string | null> {
     const nav = navigator as NavigatorWithBLE;
     if (!nav.bluetooth) throw new Error('Web Bluetooth tidak didukung di browser ini.');
-    const device = await nav.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
-    const server = await device.gatt?.connect();
-    if (!server) throw new Error('Gagal terhubung ke printer.');
-    const service = await server.getPrimaryService(SERVICE_UUID);
-    characteristic = await service.getCharacteristic(WRITE_CHAR_UUID);
-    deviceName.value = device.name ?? 'Printer Thermal';
-    isConnected.value = true;
-    return deviceName.value;
+    try {
+      const device = await nav.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+      const server = await device.gatt?.connect();
+      if (!server) throw new Error('Gagal terhubung ke printer Bluetooth.');
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      characteristic = await service.getCharacteristic(WRITE_CHAR_UUID);
+      deviceName.value = device.name ?? 'Printer Thermal';
+      isConnected.value = true;
+      return deviceName.value;
+    } catch (err) {
+      if (
+        (err instanceof DOMException && err.name === 'NotFoundError') ||
+        (err instanceof Error && err.message.toLowerCase().includes('cancelled'))
+      ) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   async function printReceipt(r: ReceiptData): Promise<void> {
     if (!characteristic) throw new Error('Printer belum terhubung.');
 
-    let payload = `\x1b@\x1ba\x01${r.storeName}\n\x1ba\x00${r.address}\n${r.phone}\n\n` +
+    let payload =
+      `\x1b@\x1ba\x01${r.storeName}\n\x1ba\x00${r.address}\n${r.phone}\n\n` +
       `================================\nNo. Nota : ${r.invoiceNo}\nTanggal  : ${r.date}\nKasir    : ${r.cashier}\n================================\n`;
 
     for (const it of r.items) {
       payload += `${it.name}\n  ${it.qty} ${it.unit} x ${formatPrice(it.price)}\n${' '.repeat(16)}${formatPrice(it.subtotal)}\n`;
     }
 
-    payload += `--------------------------------\n${'Subtotal'.padEnd(16)}${formatPrice(r.items.reduce((s, i) => s + i.subtotal, 0))}\n` +
+    payload +=
+      `--------------------------------\n${'Subtotal'.padEnd(16)}${formatPrice(r.items.reduce((s, i) => s + i.subtotal, 0))}\n` +
       `${'TOTAL'.padEnd(16)}${formatPrice(r.total)}\n` +
       `${'BAYAR'.padEnd(16)}${formatPrice(r.pay)}\n` +
       `${'KEMBALI'.padEnd(16)}${formatPrice(r.change)}\n` +
