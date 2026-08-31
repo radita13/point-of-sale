@@ -26,6 +26,7 @@ export function useInventory() {
   }
 
   const products = ref<Product[]>([]);
+  const isLoading = ref(true);
   const showModal = ref(false);
   const isEdit = ref(false);
   const form = reactive<Product>(emptyForm());
@@ -52,15 +53,28 @@ export function useInventory() {
     errors.smallPrice = '';
   }
 
-  async function refresh() {
-    products.value = (await db.products.toArray()).filter((p) => !p.isDeleted);
+  async function refresh(isInitial = false) {
+    try {
+      const startTime = Date.now();
+      const data = (await db.products.toArray()).filter((p) => !p.isDeleted);
+      if (isInitial) {
+        const elapsed = Date.now() - startTime;
+        const minDisplayTime = 500;
+        if (elapsed < minDisplayTime) {
+          await new Promise((resolve) => setTimeout(resolve, minDisplayTime - elapsed));
+        }
+      }
+      products.value = data;
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   async function refreshWithRestore() {
     if (navigator.onLine && (await db.products.count()) === 0) {
       await useSyncStore().restoreProductsFromServer();
     }
-    await refresh();
+    await refresh(true);
   }
 
   let unsubscribe: (() => void) | undefined;
@@ -68,7 +82,7 @@ export function useInventory() {
   onMounted(() => {
     refreshWithRestore();
     unsubscribe = useSyncStore().onProductsUpdated(() => {
-      refresh();
+      refresh(false);
     });
   });
 
@@ -514,6 +528,7 @@ export function useInventory() {
 
   return {
     products,
+    isLoading,
     showModal,
     isEdit,
     form,

@@ -9,13 +9,16 @@ import type {
 } from '@point-of-sale/shared';
 import { currentAccessToken } from './supabase';
 
-const baseURL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:4000/api/v1';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '';
 
-export function getStoreId(): string {
-  return (
-    (import.meta.env.VITE_STORE_ID as string | undefined) ?? '11111111-1111-4111-8111-111111111111'
-  );
+let dynamicStoreId: string | null = null;
+
+export function setStoreId(id: string) {
+  dynamicStoreId = id;
+}
+
+export function getStoreId(): string | undefined {
+  return dynamicStoreId || (import.meta.env.VITE_STORE_ID as string | undefined) || undefined;
 }
 
 interface ApiOptions {
@@ -31,28 +34,50 @@ async function request<T>(path: string, init: RequestInit & ApiOptions = {}): Pr
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${baseURL}${path}`, {
-    ...init,
-    headers,
-    signal: init.signal,
-  });
+  try {
+    const res = await fetch(`${baseURL}${path}`, {
+      ...init,
+      headers,
+      signal: init.signal,
+    });
 
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    if (res.status === 401) {
-      console.warn('[API Interceptor] Sesi token kedaluwarsa atau tidak valid (HTTP 401).');
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      if (res.status === 401) {
+        console.warn('[API Interceptor] Sesi token kedaluwarsa atau tidak valid (HTTP 401).');
+      }
+      throw new Error(`API ${res.status}: ${detail}`);
     }
-    throw new Error(`API ${res.status}: ${detail}`);
+    return (await res.json()) as T;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      try {
+        const { useNetworkStore } = await import('@/stores');
+        useNetworkStore().setOnline(false);
+      } catch {}
+    }
+    throw error;
   }
-  return (await res.json()) as T;
 }
 
 export const api = {
-  async getProducts(storeId: string, page?: number, limit?: number, since?: number): Promise<Product[]> {
-    let url = `/products?storeId=${storeId}`;
-    if (page !== undefined) url += `&page=${page}`;
-    if (limit !== undefined) url += `&limit=${limit}`;
-    if (since !== undefined) url += `&since=${since}`;
+  async getProducts(
+    storeId?: string,
+    page?: number,
+    limit?: number,
+    since?: number
+  ): Promise<Product[]> {
+    const sid = storeId || getStoreId();
+    let url = `/products`;
+    const params = new URLSearchParams();
+    if (sid) params.append('storeId', sid);
+    if (page !== undefined) params.append('page', String(page));
+    if (limit !== undefined) params.append('limit', String(limit));
+    if (since !== undefined) params.append('since', String(since));
+
+    const queryString = params.toString();
+    if (queryString) url += `?${queryString}`;
+
     const res = await request<{ data: Product[] } | Product[]>(url);
     return Array.isArray(res) ? res : res.data;
   },
@@ -66,6 +91,8 @@ export const api = {
     failed?: string[];
     invoiceNoMap?: Record<string, string>;
   }> {
+    const sid = getStoreId();
+    const bodyPayload = sid ? { ...payload, storeId: sid } : payload;
     return request<{
       synced: string[];
       skipped?: string[];
@@ -73,39 +100,51 @@ export const api = {
       invoiceNoMap?: Record<string, string>;
     }>('/transactions/sync', {
       method: 'POST',
-      body: JSON.stringify({ ...payload, storeId: getStoreId() }),
+      body: JSON.stringify(bodyPayload),
       ...opts,
     });
   },
 
   syncStatus(ids: string[]): Promise<SyncStatusResult[]> {
-    return request<SyncStatusResult[]>(
-      `/transactions/sync-status?storeId=${getStoreId()}&ids=${ids.join(',')}`
-    );
+    const sid = getStoreId();
+    let url = `/transactions/sync-status?ids=${ids.join(',')}`;
+    if (sid) url += `&storeId=${sid}`;
+    return request<SyncStatusResult[]>(url);
   },
 
-  async getTransactions(storeId: string, page = 1, limit = 10): Promise<Transaction[]> {
-    const res = await request<{ data: Transaction[] } | Transaction[]>(
-      `/transactions?storeId=${storeId}&page=${page}&limit=${limit}`
-    );
+  async getTransactions(storeId?: string, page = 1, limit = 10): Promise<Transaction[]> {
+    const sid = storeId || getStoreId();
+    let url = `/transactions?page=${page}&limit=${limit}`;
+    if (sid) url += `&storeId=${sid}`;
+    const res = await request<{ data: Transaction[] } | Transaction[]>(url);
     return Array.isArray(res) ? res : res.data;
   },
 
   syncProducts(payload: ProductSyncPayload): Promise<{ synced: ProductSyncResult[] }> {
+    const sid = getStoreId();
+    const bodyPayload = sid && !payload.storeId ? { ...payload, storeId: sid } : payload;
     return request<{ synced: ProductSyncResult[] }>('/products/sync', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(bodyPayload),
     });
   },
 
   getLowStock(): Promise<Product[]> {
-    return request<Product[]>(`/inventory/low-stock?storeId=${getStoreId()}`);
+    const sid = getStoreId();
+    const url = sid ? `/inventory/low-stock?storeId=${sid}` : '/inventory/low-stock';
+    return request<Product[]>(url);
   },
 
   postAdjustments(adjustments: InventoryAdjustment[]): Promise<void> {
+    const sid = getStoreId();
+    const bodyPayload = sid ? { storeId: sid, adjustments } : { adjustments };
     return request<void>('/inventory/adjustments', {
       method: 'POST',
-      body: JSON.stringify({ storeId: getStoreId(), adjustments }),
+      body: JSON.stringify(bodyPayload),
     });
+  },
+
+  getMyStore(): Promise<{ store: { id: string; name: string } }> {
+    return request<{ store: { id: string; name: string } }>('/stores/me');
   },
 };

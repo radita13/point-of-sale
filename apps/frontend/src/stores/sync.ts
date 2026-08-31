@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import type { Product } from '@point-of-sale/shared';
 import { db } from '@/db/database';
-import { api, getStoreId } from '@/services/api';
+import { api } from '@/services/api';
 
 const BATCH_SIZE = 100;
 
@@ -83,7 +83,7 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncingInternal.value = true;
     lastError.value = null;
     try {
-      const result = await api.syncProducts({ storeId: getStoreId(), products: batch });
+      const result = await api.syncProducts({ products: batch });
       const toDelete: string[] = [];
       const toUpdate: Array<{ key: string; changes: any }> = [];
 
@@ -137,7 +137,7 @@ export const useSyncStore = defineStore('sync', () => {
     isSyncingInternal.value = true;
     lastError.value = null;
     try {
-      const result = await api.syncTransactions({ storeId: getStoreId(), transactions: batch });
+      const result = await api.syncTransactions({ transactions: batch });
       const syncedIds = new Set([...result.synced, ...(result.skipped ?? [])]);
       await db.transactions.bulkUpdate(
         batch
@@ -174,7 +174,7 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       const since = lastProductPullAt.value ?? undefined;
       const startTime = Date.now();
-      const serverProducts = await api.getProducts(getStoreId(), undefined, undefined, since);
+      const serverProducts = await api.getProducts(undefined, undefined, undefined, since);
       if (!serverProducts || serverProducts.length === 0) {
         lastProductPullAt.value = startTime;
         return 0;
@@ -252,7 +252,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function restoreTransactionsFromServer(): Promise<number> {
     if (!navigator.onLine) return 0;
     try {
-      const rows = await api.getTransactions(getStoreId());
+      const rows = await api.getTransactions();
       if (rows.length === 0) return 0;
       const existingIds = new Set((await db.transactions.toArray()).map((t) => t.id));
       const toAdd = rows.filter((t) => !existingIds.has(t.id));
@@ -268,7 +268,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function restoreProductsFromServer(): Promise<number> {
     if (!navigator.onLine) return 0;
     try {
-      const rows = await api.getProducts(getStoreId());
+      const rows = await api.getProducts();
       if (rows.length === 0) return 0;
       const withSync = rows.map((p) => ({
         ...p,
@@ -335,7 +335,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     isSyncingInternal.value = true;
     try {
-      const result = await api.syncTransactions({ storeId: getStoreId(), transactions: [tx] });
+      const result = await api.syncTransactions({ transactions: [tx] });
       if (result.synced.includes(tx.id)) {
         await db.transactions.update(tx.id, {
           isSynced: true,

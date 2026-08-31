@@ -23,14 +23,16 @@ async function bootstrap() {
   if (wasCleared) {
     sessionStorage.removeItem('pos_local_cleared');
   } else {
-    const productCount = await db.products.count();
-    if (productCount === 0 && navigator.onLine) {
-      await useSyncStore().restoreProductsFromServer();
-    }
+    db.products.count().then((productCount) => {
+      if (productCount === 0 && navigator.onLine) {
+        useSyncStore().restoreProductsFromServer();
+      }
+    });
   }
 
-  await useSyncStore().ensurePendingStockDirty();
-  await useSyncStore().cleanupOldTransactions();
+  const syncStore = useSyncStore();
+  syncStore.ensurePendingStockDirty();
+  syncStore.cleanupOldTransactions();
 
   app.use(router);
   window.addEventListener(

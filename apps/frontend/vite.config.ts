@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'robots.txt'],
       manifest: {
         name: 'Point of Sale',
         short_name: 'POS',
@@ -45,12 +45,35 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
-      '@point-of-sale/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
+      '@point-of-sale/shared': fileURLToPath(
+        new URL('../../packages/shared/src/index.ts', import.meta.url)
+      ),
     },
-    // Utamakan source .ts (.mts/.ts) di atas artifact .js (lihat tsconfig noEmit)
     extensions: ['.mts', '.ts', '.mjs', '.js', '.jsx', '.tsx', '.json', '.vue'],
   },
   server: {
     port: 5173,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@supabase')) {
+              return 'supabase-vendor';
+            }
+            if (id.includes('dexie')) {
+              return 'dexie-vendor';
+            }
+            if (id.includes('@tanstack')) {
+              return 'tanstack-vendor';
+            }
+            if (id.includes('vue-sonner') || id.includes('lucide-vue-next')) {
+              return 'ui-vendor';
+            }
+          }
+        },
+      },
+    },
   },
 });
