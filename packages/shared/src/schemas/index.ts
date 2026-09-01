@@ -77,6 +77,7 @@ export const transactionSchema = z
     id: z.string().regex(UUID_V4_RE, "id must be a UUID v4"),
     invoiceNo: z.string().min(1),
     timestamp: z.number().int().positive(),
+    cashierName: z.string().optional(),
     items: z.array(transactionItemSchema).min(1).max(100),
     totalAmount: z.number().nonnegative(),
     finalAmount: z.number().nonnegative(),
@@ -152,4 +153,8 @@ export const inventoryAdjustmentSchema = z.object({
 export const inventoryAdjustmentsPayloadSchema = z.object({
   storeId: storeIdSchema.optional(),
   adjustments: z.array(inventoryAdjustmentSchema).min(1).max(100),
+});
+
+export const updateStoreSchema = z.object({
+  name: z.string().min(1, "Store name is required").max(100, "Store name too long"),
 });

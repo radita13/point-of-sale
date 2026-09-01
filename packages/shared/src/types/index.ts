@@ -48,6 +48,7 @@ export interface Transaction {
   id: string;
   invoiceNo: string;
   timestamp: number;
+  cashierName?: string;
   items: TransactionItem[];
   totalAmount: number;
   finalAmount: number;
@@ -112,4 +113,8 @@ export interface GetLowStockQuery {
 export interface SyncStatusQuery {
   ids: string[];
   storeId?: string;
+}
+
+export interface UpdateStorePayload {
+  name: string;
 }
