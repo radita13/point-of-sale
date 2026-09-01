@@ -6,8 +6,12 @@ import { useAuthStore, useNetworkStore, useRoleStore } from '@/stores';
 import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
 import { useCartStore } from '@/stores/cart';
+import { api } from '@/services/api';
 import { useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
+import Button from '../ui/Button.vue';
+import Input from '../ui/Input.vue';
+import Label from '../ui/Label.vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -118,21 +122,26 @@ async function saveProfile() {
     return;
   }
 
+  const newStoreName = profileForm.value.storeName.trim();
+
   storeSettings.updateSettings(profileForm.value);
 
   if (auth.isAuthenticated) {
     try {
-      await auth.updateProfile({
-        fullName: profileForm.value.ownerName.trim(),
-        phone: profileForm.value.phone.trim(),
-      });
-      toast.success('Profil Toko & Akun Supabase berhasil diperbarui!');
+      await Promise.all([
+        auth.updateProfile({
+          fullName: profileForm.value.ownerName.trim(),
+          phone: profileForm.value.phone.trim(),
+        }),
+        api.updateMyStore(newStoreName),
+      ]);
+      toast.success('Profil Toko berhasil diperbarui!');
     } catch (err) {
-      console.warn('Gagal sync ke Supabase Auth:', err);
-      toast.success('Profil Toko disimpan (lokal).');
+      console.warn('Gagal sync profil toko ke server:', err);
+      toast.warning('Profil disimpan di lokal perangkat, namun gagal sinkron ke server.');
     }
   } else {
-    toast.success('Profil Toko berhasil diperbarui!');
+    toast.info('Profil Toko berhasil disimpan di lokal perangkat.');
   }
 
   showProfileModal.value = false;
@@ -202,9 +211,15 @@ async function handleLogout() {
               <Unlock v-else class="h-4 w-4" />
             </span>
             <span class="min-w-0 flex-1">
-              <span class="block text-xs font-extrabold">{{ role.isCashierMode ? 'Mode Kasir (Aktif)' : 'Mode Owner (Akses Penuh)' }}</span>
+              <span class="block text-xs font-extrabold">{{
+                role.isCashierMode ? 'Mode Kasir (Aktif)' : 'Mode Owner (Akses Penuh)'
+              }}</span>
               <span class="block truncate text-[10px] font-semibold text-gray-600">
-                {{ role.isCashierMode ? 'Klik untuk kembali ke Mode Owner' : 'Kunci menu sensitif untuk kasir' }}
+                {{
+                  role.isCashierMode
+                    ? 'Klik untuk kembali ke Mode Owner'
+                    : 'Kunci menu sensitif untuk kasir'
+                }}
               </span>
             </span>
           </button>
@@ -305,71 +320,83 @@ async function handleLogout() {
 
         <form @submit.prevent="saveProfile" class="space-y-3 text-xs font-bold">
           <div>
-            <label class="mb-1 block">Nama Toko</label>
-            <input
+            <Label for="storeName" class="mb-1 block">Nama Toko</Label>
+            <Input
               v-model="profileForm.storeName"
-              placeholder="Contoh: TOKO BERKAH SEMBAKO"
-              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
+              placeholder="Contoh: Toko Sembako Berkah"
+              class="text-xs font-extrabold"
             />
           </div>
 
           <div>
-            <label class="mb-1 block">Nama Pemilik (Owner)</label>
-            <input
+            <Label for="ownerName" class="mb-1 block">Nama Pemilik (Owner)</Label>
+            <Input
               v-model="profileForm.ownerName"
               placeholder="Contoh: Pak Budi"
-              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
+              class="text-xs font-extrabold"
             />
           </div>
 
           <div>
-            <label class="mb-1 block">Alamat Toko (Struk)</label>
-            <input
+            <Label for="cashierName" class="mb-1 block">Nama Kasir Bertugas</Label>
+            <Input
+              v-model="profileForm.cashierName"
+              placeholder="Contoh: Siti / Kasir 1"
+              class="text-xs font-extrabold"
+            />
+          </div>
+
+          <div>
+            <Label for="address" class="mb-1 block">Alamat Toko</Label>
+            <Input
               v-model="profileForm.address"
               placeholder="Contoh: Jl. Sembako Raya No. 88, Manado"
-              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
+              class="text-xs font-extrabold"
             />
           </div>
 
           <div>
-            <label class="mb-1 block">No. Telepon / WhatsApp (Struk)</label>
-            <input
+            <Label for="phone" class="mb-1 block">No. Telepon / WhatsApp</Label>
+            <Input
               v-model="profileForm.phone"
-              placeholder="Contoh: Telp/WA: 0812-3456-7890"
-              class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-xs font-extrabold focus:ring-2 focus:outline-none"
+              placeholder="Contoh: 0812-3456-7890"
+              class="text-xs font-extrabold"
             />
           </div>
 
           <div class="border-ink border-t-2 pt-2">
-            <label class="mb-1 block">PIN Modus Owner (Buka Kunci Kasir)</label>
-            <div class="flex gap-2">
-              <input
+            <Label class="mb-1 block">PIN Toko (Owner)</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <Input
                 v-model="oldPinInput"
                 type="password"
                 maxlength="6"
                 placeholder="PIN Lama (6 digit)"
-                class="border-ink bg-canvas w-1/2 rounded-xl border-2 px-2 py-1.5 text-xs font-extrabold"
+                class="text-xs font-extrabold"
               />
-              <input
+              <Input
                 v-model="newPinInput"
                 type="password"
                 maxlength="6"
                 placeholder="PIN Baru (6 digit)"
-                class="border-ink bg-canvas w-1/2 rounded-xl border-2 px-2 py-1.5 text-xs font-extrabold"
+                class="text-xs font-extrabold"
               />
             </div>
-            <p v-if="changePinError" class="mt-1 text-[10px] font-bold text-card-coral">{{ changePinError }}</p>
-            <button
+            <p v-if="changePinError" class="text-card-coral mt-1 text-[10px] font-bold">
+              {{ changePinError }}
+            </p>
+            <Button
               type="button"
+              size="icon"
               @click="handleSaveNewPin"
-              class="neo-press border-ink bg-canvas mt-1.5 w-full rounded-xl border-2 py-1 text-[11px] font-extrabold"
+              class="mt-2 w-full text-xs font-extrabold"
             >
-              Ubah PIN Owner
-            </button>
+              Ubah PIN
+            </Button>
           </div>
 
           <div>
-            <label class="mb-1 block">Pesan Struk (Footer)</label>
+            <Label for="receiptFooter" class="mb-1 block">Pesan Struk (Footer)</Label>
             <textarea
               v-model="profileForm.receiptFooter"
               rows="2"
@@ -379,19 +406,18 @@ async function handleLogout() {
           </div>
 
           <div class="border-ink grid grid-cols-2 gap-2 border-t-2 pt-3">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               @click="showProfileModal = false"
-              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
+              class="text-xs font-extrabold"
             >
               Batal
-            </button>
-            <button
-              type="submit"
-              class="neo-press border-ink bg-brand shadow-hard-sm flex items-center justify-center gap-1.5 rounded-xl border-2 py-2 text-xs font-extrabold text-white"
-            >
-              <Save class="h-4 w-4" /> Simpan Profil
-            </button>
+            </Button>
+            <Button type="submit" size="md" class="text-xs font-extrabold">
+              <Save class="h-4 w-4" /> Simpan
+            </Button>
           </div>
         </form>
       </div>
@@ -404,39 +430,40 @@ async function handleLogout() {
       <div
         class="border-ink bg-surface shadow-hard-xl w-full max-w-xs rounded-2xl border-2 p-5 text-center"
       >
-        <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-card-green text-white shadow-hard-sm">
+        <div
+          class="border-ink bg-card-green shadow-hard-sm mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 text-white"
+        >
           <Lock class="h-6 w-6" />
         </div>
         <h3 class="text-sm font-extrabold">Buat PIN Owner (6 Digit)</h3>
-        <p class="mb-4 text-[11px] font-bold text-gray-500">PIN ini digunakan untuk membuka kembali Mode Owner dari Mode Kasir.</p>
+        <p class="mb-4 text-[11px] font-bold text-gray-500">
+          PIN ini digunakan untuk membuka kembali Mode Owner dari Mode Kasir.
+        </p>
 
         <form @submit.prevent="confirmSetInitialPin" class="space-y-3">
-          <input
+          <Input
             v-model="newPin6Input"
             type="password"
             maxlength="6"
             pattern="[0-9]*"
             inputmode="numeric"
             placeholder="Contoh: 123456"
-            class="border-ink bg-canvas focus:ring-brand w-full text-center tracking-widest rounded-xl border-2 px-3 py-2 text-base font-extrabold focus:ring-2 focus:outline-none"
+            class="border-ink bg-canvas focus:ring-brand w-full rounded-xl border-2 px-3 py-2 text-center text-base font-extrabold tracking-widest focus:ring-2 focus:outline-none"
             autofocus
           />
-          <p v-if="setPinError" class="text-[11px] font-bold text-card-coral">{{ setPinError }}</p>
+          <p v-if="setPinError" class="text-card-coral text-[11px] font-bold">{{ setPinError }}</p>
 
           <div class="grid grid-cols-2 gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="secondary"
+              size="md"
               @click="showSetPinModal = false"
-              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
+              class="text-xs font-extrabold"
             >
               Batal
-            </button>
-            <button
-              type="submit"
-              class="neo-press border-ink bg-brand shadow-hard-sm rounded-xl border-2 py-2 text-xs font-extrabold text-white"
-            >
-              Simpan &amp; Aktifkan
-            </button>
+            </Button>
+            <Button type="submit" size="md" class="text-xs font-extrabold">Aktifkan</Button>
           </div>
         </form>
       </div>
@@ -450,37 +477,32 @@ async function handleLogout() {
       <div
         class="border-ink bg-surface shadow-hard-xl w-full max-w-xs rounded-2xl border-2 p-5 text-center"
       >
-        <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 border-ink bg-card-coral text-white shadow-hard-sm">
+        <div
+          class="border-ink bg-card-coral shadow-hard-sm mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border-2 text-white"
+        >
           <Lock class="h-6 w-6" />
         </div>
         <h3 class="text-sm font-extrabold">Masukkan PIN Owner</h3>
-        <p class="mb-4 text-[11px] font-bold text-gray-500">Ketik PIN untuk kembali ke Mode Owner</p>
+        <p class="mb-4 text-[11px] font-bold text-gray-500">
+          Ketik PIN untuk kembali ke Mode Owner
+        </p>
 
         <form @submit.prevent="confirmUnlockCashierMode" class="space-y-3">
-          <input
+          <Input
             v-model="pinInput"
             type="password"
             maxlength="6"
             placeholder="PIN 6 Digit"
-            class="border-ink bg-canvas focus:ring-brand w-full text-center rounded-xl border-2 px-3 py-2 text-sm font-extrabold focus:ring-2 focus:outline-none"
+            class="text-center text-sm font-extrabold"
             autofocus
           />
-          <p v-if="pinError" class="text-[11px] font-bold text-card-coral">{{ pinError }}</p>
+          <p v-if="pinError" class="text-card-coral text-[11px] font-bold">{{ pinError }}</p>
 
-          <div class="grid grid-cols-2 gap-2 pt-2">
-            <button
-              type="button"
-              @click="showPinModal = false"
-              class="neo-press border-ink bg-canvas rounded-xl border-2 py-2 text-xs font-extrabold"
-            >
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <Button type="button" variant="secondary" size="md" @click="showPinModal = false">
               Batal
-            </button>
-            <button
-              type="submit"
-              class="neo-press border-ink bg-brand shadow-hard-sm rounded-xl border-2 py-2 text-xs font-extrabold text-white"
-            >
-              Buka Kunci
-            </button>
+            </Button>
+            <Button type="submit" variant="primary" size="md"> Buka Kunci </Button>
           </div>
         </form>
       </div>

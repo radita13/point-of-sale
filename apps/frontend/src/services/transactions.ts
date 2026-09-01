@@ -25,6 +25,7 @@ export async function commitTransaction(
     paymentMethod: PaymentMethod;
     payAmount: number;
     changeAmount: number;
+    cashierName?: string;
   },
 ): Promise<CommitResult> {
   const totalAmount = items.reduce((s, it) => s + it.subtotal, 0);
@@ -43,6 +44,7 @@ export async function commitTransaction(
     id: makeUuid(),
     invoiceNo,
     timestamp: now,
+    cashierName: opts.cashierName?.trim() || 'Kasir',
     items,
     totalAmount,
     finalAmount,

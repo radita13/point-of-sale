@@ -22,10 +22,20 @@ export const useRoleStore = defineStore('role', () => {
       if (remoteHash && typeof remoteHash === 'string') {
         ownerPinHash.value = remoteHash;
         localStorage.setItem('pos_owner_pin_hash', remoteHash);
+      } else {
+        ownerPinHash.value = null;
+        localStorage.removeItem('pos_owner_pin_hash');
       }
     } catch (e) {
       console.warn('[Role] Gagal sync PIN dari Supabase:', e);
     }
+  }
+
+  function resetRoleState() {
+    isCashierMode.value = false;
+    ownerPinHash.value = null;
+    localStorage.removeItem('pos_cashier_mode');
+    localStorage.removeItem('pos_owner_pin_hash');
   }
 
   syncPinFromSupabase();
@@ -104,6 +114,7 @@ export const useRoleStore = defineStore('role', () => {
 
   return {
     isCashierMode,
+    ownerPinHash,
     currentRole,
     hasPinSet,
     enableCashierMode,
@@ -112,5 +123,6 @@ export const useRoleStore = defineStore('role', () => {
     verifyOwnerPin,
     setOwnerPin,
     syncPinFromSupabase,
+    resetRoleState,
   };
 });

@@ -71,7 +71,7 @@ async function printReceiptNow() {
       phone: displayPhone.value,
       invoiceNo: selectedTx.value.invoiceNo,
       date: new Date(selectedTx.value.timestamp).toLocaleString('id-ID'),
-      cashier: 'Kasir',
+      cashier: selectedTx.value.cashierName || storeSettings.settings.cashierName || 'Kasir',
       items: selectedTx.value.items.map((i) => ({
         name: i.productName,
         qty: i.qty,
@@ -445,6 +445,9 @@ onMounted(async () => {
           <div class="flex justify-between">
             <span>Tanggal:</span
             ><span>{{ new Date(selectedTx.timestamp).toLocaleString('id-ID') }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Kasir:</span><span class="font-bold">{{ selectedTx.cashierName || storeSettings.settings.cashierName || 'Kasir' }}</span>
           </div>
         </div>
 

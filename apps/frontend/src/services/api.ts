@@ -147,4 +147,11 @@ export const api = {
   getMyStore(): Promise<{ store: { id: string; name: string } }> {
     return request<{ store: { id: string; name: string } }>('/stores/me');
   },
+
+  updateMyStore(name: string): Promise<{ success: boolean; store: { id: string; name: string } }> {
+    return request<{ success: boolean; store: { id: string; name: string } }>('/stores/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  },
 };

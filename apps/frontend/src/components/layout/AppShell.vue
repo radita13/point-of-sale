@@ -16,7 +16,16 @@ const sync = useSyncStore();
 const storeSettings = useStoreSettingsStore();
 const role = useRoleStore();
 
-const displayOwnerName = computed(() => {
+const userRoleLabel = computed(() => {
+  return role.isCashierMode ? 'Kasir' : 'Owner';
+});
+
+const displayUserName = computed(() => {
+  if (role.isCashierMode) {
+    const cashier = storeSettings.settings.cashierName?.trim();
+    return cashier ? cashier.toUpperCase() : 'KASIR';
+  }
+
   const supabaseName = auth.userMetadata?.fullName?.trim();
   if (supabaseName) return supabaseName.toUpperCase();
   const customName = storeSettings.settings.ownerName?.trim();
@@ -100,8 +109,8 @@ function go(key: string) {
               {{ storeSettings.settings.storeName }}
             </h1>
             <p class="text-ink/75 text-[11px] font-bold">
-              <span class="text-ink font-extrabold">Owner: </span>
-              {{ displayOwnerName }}
+              <span class="text-ink font-extrabold">{{ userRoleLabel }}: </span>
+              {{ displayUserName }}
             </p>
           </div>
         </div>

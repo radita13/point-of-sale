@@ -6,6 +6,7 @@ const STORAGE_KEY = "point_of_sale_store_settings";
 export interface StoreSettings {
   storeName: string;
   ownerName: string;
+  cashierName: string;
   address: string;
   phone: string;
   receiptFooter: string;
@@ -14,6 +15,7 @@ export interface StoreSettings {
 const DEFAULT_SETTINGS: StoreSettings = {
   storeName: "Toko Sumber Rejeki",
   ownerName: "",
+  cashierName: "Kasir",
   address: "Jl. Sembako Raya No. 88, Manado",
   phone: "",
   receiptFooter:
@@ -42,5 +44,19 @@ export const useStoreSettingsStore = defineStore("storeSettings", () => {
     }
   }
 
-  return { settings, updateSettings };
+  function resetSettings(storeName?: string, ownerName?: string, phone?: string) {
+    settings.value = {
+      ...DEFAULT_SETTINGS,
+      ...(storeName ? { storeName } : {}),
+      ...(ownerName ? { ownerName } : {}),
+      ...(phone ? { phone } : {}),
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings.value));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  return { settings, updateSettings, resetSettings };
 });

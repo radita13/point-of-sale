@@ -4,12 +4,10 @@ import { useRouter } from 'vue-router';
 import { Store } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { supabase } from '@/services/supabase';
-import { useAuthStore } from '@/stores';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();
-const auth = useAuthStore();
 
 const email = ref('');
 const password = ref('');
@@ -17,11 +15,6 @@ const error = ref('');
 const loading = ref(false);
 
 async function handleLogin() {
-  if (!supabase) {
-    auth.loginDemo();
-    router.push({ name: 'kasir' });
-    return;
-  }
   error.value = '';
   loading.value = true;
   try {

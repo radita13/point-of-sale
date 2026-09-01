@@ -240,6 +240,7 @@ const presetsWithPas = computed(() => [
 interface Receipt {
   invoiceNo: string;
   date: string;
+  cashier?: string;
   items: TransactionItem[];
   total: number;
   pay: number;
@@ -264,15 +265,18 @@ async function processPayment() {
   }));
 
   try {
+    const activeCashier = storeSettings.settings.cashierName?.trim() || 'Kasir';
     const { transaction } = await commitTransaction(items, {
       paymentMethod: 'CASH',
       payAmount: payAmount.value,
       changeAmount: changeAmount.value,
+      cashierName: activeCashier,
     });
 
     lastReceipt.value = {
       invoiceNo: transaction.invoiceNo,
       date: new Date(transaction.timestamp).toLocaleString('id-ID'),
+      cashier: transaction.cashierName || activeCashier,
       items: transaction.items,
       total: transaction.finalAmount,
       pay: transaction.payAmount,
@@ -318,7 +322,7 @@ function printNow() {
       phone: displayPhone.value,
       invoiceNo: lastReceipt.value.invoiceNo,
       date: lastReceipt.value.date,
-      cashier: 'Kasir',
+      cashier: lastReceipt.value.cashier || storeSettings.settings.cashierName || 'Kasir',
       items: lastReceipt.value.items.map((i) => ({
         name: i.productName,
         qty: i.qty,
@@ -996,6 +1000,9 @@ function handleBarcodeScanned(skuText: string) {
           </div>
           <div class="flex justify-between">
             <span>Tanggal:</span><span>{{ lastReceipt.date }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span>Kasir:</span><span class="font-bold">{{ lastReceipt.cashier || storeSettings.settings.cashierName || 'Kasir' }}</span>
           </div>
         </div>
 
