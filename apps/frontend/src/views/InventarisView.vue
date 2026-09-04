@@ -1,22 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import {
-  Package,
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  FileUp,
-  FileSpreadsheet,
-} from 'lucide-vue-next';
+import { Package, FileSpreadsheet, FileUp } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import Card from '@/components/ui/Card.vue';
 import Button from '@/components/ui/Button.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
-import { useInventory } from '@/composables/useInventory';
+import PaginationControls from '@/components/ui/Pagination.vue';
+import ProductFilterCard from '@/components/common/ProductFilterCard.vue';
 import ProductFormModal from '@/components/inventaris/ProductFormModal.vue';
 import DeleteConfirmModal from '@/components/inventaris/DeleteConfirmModal.vue';
 import { createProductColumns } from '@/components/inventaris/productColumns';
+import { useInventory } from '@/composables/useInventory';
+import type { Product } from '@point-of-sale/shared';
 
 import {
   useVueTable,
@@ -38,7 +34,6 @@ const {
   errors,
   deleteTarget,
   imageSizeKb,
-  CATEGORIES,
   openAdd,
   openEdit,
   closeModal,
@@ -86,18 +81,6 @@ const pagination = ref<PaginationState>({
 });
 const selectedCategory = ref('Semua');
 
-const scrollEl = ref<HTMLDivElement | null>(null);
-const canScrollLeft = ref(false);
-const canScrollRight = ref(false);
-
-function updateScrollState() {
-  const el = scrollEl.value;
-  if (!el) return;
-  const { scrollLeft, scrollWidth, clientWidth } = el;
-  canScrollLeft.value = scrollLeft > 1;
-  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
-}
-
 onMounted(() => {
   const addSku = route.query.addSku as string | undefined;
   if (addSku) {
@@ -105,18 +88,13 @@ onMounted(() => {
     form.sku = addSku.trim();
     toast.info(`Form barang baru dibuka dengan SKU: ${form.sku}`);
   }
-  updateScrollState();
-  window.addEventListener('resize', updateScrollState);
 });
 
-onUnmounted(() => {
-  window.removeEventListener('resize', updateScrollState);
-});
 const filteredData = computed(() => {
   if (selectedCategory.value === 'Semua') {
     return products.value;
   }
-  return products.value.filter((p) => p.category === selectedCategory.value);
+  return products.value.filter((p: Product) => p.category === selectedCategory.value);
 });
 
 watch([selectedCategory, globalFilter], () => {
@@ -186,6 +164,8 @@ const table = useVueTable({
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <input
+          id="inventory-csv-file"
+          name="csvFile"
           ref="fileInputRef"
           type="file"
           accept=".csv"
@@ -217,50 +197,12 @@ const table = useVueTable({
       </div>
     </div>
 
-    <Card>
-      <div class="flex flex-col gap-3 p-4">
-        <div class="relative">
-          <Search class="text-ink/40 absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2" />
-          <input
-            v-model="globalFilter"
-            type="text"
-            placeholder="Cari nama barang atau SKU..."
-            class="border-ink bg-canvas text-ink focus:ring-brand h-11 w-full rounded-xl border-2 pr-4 pl-11 text-sm font-bold focus:ring-2 focus:outline-none"
-          />
-        </div>
-        <div class="relative overflow-hidden rounded-xl">
-          <div
-            v-if="canScrollLeft"
-            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-linear-to-r to-transparent"
-          ></div>
-
-          <div
-            ref="scrollEl"
-            @scroll="updateScrollState"
-            class="flex scrollbar-none items-center gap-1.5 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
-          >
-            <button
-              v-for="cat in ['Semua', ...CATEGORIES]"
-              :key="cat"
-              @click="selectedCategory = cat"
-              :class="
-                selectedCategory === cat
-                  ? 'bg-ink text-white'
-                  : 'bg-canvas text-ink hover:bg-gray-200'
-              "
-              class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
-            >
-              {{ cat }}
-            </button>
-          </div>
-
-          <div
-            v-if="canScrollRight"
-            class="from-surface pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-linear-to-l to-transparent"
-          ></div>
-        </div>
-      </div>
-    </Card>
+    <ProductFilterCard
+      v-model:search="globalFilter"
+      v-model:category="selectedCategory"
+      inputId="inventory-search-filter"
+      inputName="globalFilter"
+    />
 
     <Card class="overflow-hidden">
       <div class="neo-scroll overflow-x-auto">
@@ -303,68 +245,19 @@ const table = useVueTable({
       </div>
 
       <!-- Pagination controls -->
-      <div
+      <PaginationControls
         v-if="table.getFilteredRowModel().rows.length > 0"
-        class="border-ink bg-surface flex flex-wrap items-center justify-between gap-2 border-t-2 p-3 pr-16 text-xs font-extrabold sm:pr-3"
-      >
-        <div class="whitespace-nowrap text-gray-600">
-          <span class="hidden sm:inline">Menampilkan </span>
-          <span
-            >{{
-              table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1
-            }}-{{
-              Math.min(
-                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                table.getFilteredRowModel().rows.length
-              )
-            }}</span
-          >
-          <span class="font-normal text-gray-400"> / </span>
-          <span>{{ table.getFilteredRowModel().rows.length }}</span>
-          <span class="hidden sm:inline"> barang</span>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <div class="flex items-center gap-1">
-            <select
-              :value="table.getState().pagination.pageSize"
-              @change="
-                (e: Event) => table.setPageSize(Number((e.target as HTMLSelectElement).value))
-              "
-              class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
-              title="Baris per halaman"
-            >
-              <option :value="10">10</option>
-              <option :value="20">20</option>
-              <option :value="50">50</option>
-            </select>
-          </div>
-
-          <div class="flex items-center gap-1">
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="!table.getCanPreviousPage()"
-              @click="table.previousPage()"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronLeft class="h-4 w-4" />
-            </Button>
-            <span class="px-1 text-[11px] whitespace-nowrap">
-              {{ table.getState().pagination.pageIndex + 1 }}/{{ table.getPageCount() }}
-            </span>
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="!table.getCanNextPage()"
-              @click="table.nextPage()"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronRight class="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+        :page="table.getState().pagination.pageIndex + 1"
+        @update:page="(p) => table.setPageIndex(p - 1)"
+        :page-size="table.getState().pagination.pageSize"
+        @update:page-size="(s) => table.setPageSize(s)"
+        :total-pages="table.getPageCount()"
+        :total-items="table.getFilteredRowModel().rows.length"
+        :page-size-options="[10, 20, 50]"
+        item-name="barang"
+        id-prefix="inventory"
+        class="p-3 pr-16 sm:pr-3"
+      />
     </Card>
 
     <!-- Add/Edit modal -->

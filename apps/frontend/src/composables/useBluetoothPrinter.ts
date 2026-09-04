@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import type { ReceiptData } from './receipt';
+import type { ReceiptData } from '@point-of-sale/shared';
 import { formatPrice } from '@/lib/utils';
 
 type NavigatorWithBLE = Navigator & {
@@ -64,5 +64,3 @@ export function useBluetoothPrinter() {
 
   return { isSupported, isConnected, deviceName, connect, printReceipt };
 }
-
-export type { ReceiptData } from './receipt';

@@ -9,12 +9,15 @@ export interface SelectOption {
 
 const props = withDefaults(
   defineProps<{
+    id?: string;
+    name?: string;
     modelValue?: string | number;
     options?: SelectOption[];
     class?: string;
     disabled?: boolean;
     placeholder?: string;
     variant?: 'flat' | 'neo';
+    autocomplete?: string;
   }>(),
   {
     variant: 'flat',
@@ -36,8 +39,11 @@ function onChange(e: Event) {
 <template>
   <div class="relative inline-block w-full">
     <select
+      :id="id"
+      :name="name || id"
       :value="modelValue"
       :disabled="disabled"
+      :autocomplete="autocomplete"
       @change="onChange"
       :class="
         cn(

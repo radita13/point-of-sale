@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input.vue';
 import Label from '@/components/ui/Label.vue';
 import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product';
 const BarcodeScannerModal = defineAsyncComponent(
-  () => import('@/components/kasir/BarcodeScannerModal.vue')
+  () => import('@/components/common/BarcodeScannerModal.vue')
 );
 
 const props = defineProps<{
@@ -88,14 +88,14 @@ function handleFileChange(event: Event) {
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <Label required>Kategori Produk</Label>
-            <Select v-model="form.category" class="w-full">
+            <Label for="product-category" required>Kategori Produk</Label>
+            <Select id="product-category" name="category" v-model="form.category" class="w-full">
               <option v-for="c in CATEGORIES" :key="c" :value="c">{{ c }}</option>
             </Select>
           </div>
           <div>
-            <Label required>Satuan Unit</Label>
-            <Select v-model="form.unit" class="w-full">
+            <Label for="product-unit" required>Satuan Unit</Label>
+            <Select id="product-unit" name="unit" v-model="form.unit" class="w-full">
               <option v-for="u in UNITS" :key="u" :value="u">{{ u }}</option>
             </Select>
           </div>
@@ -237,10 +237,18 @@ function handleFileChange(event: Event) {
             <Package v-else class="text-ink/30 h-6 w-6" />
           </div>
           <label
+            for="product-image-upload"
             class="neo-press border-ink hover:bg-canvas inline-flex cursor-pointer items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-xs font-extrabold"
           >
             {{ form.image ? 'Ganti Foto' : 'Unggah Foto...' }}
-            <input type="file" accept="image/*" class="hidden" @change="handleFileChange" />
+            <input
+              id="product-image-upload"
+              name="productImage"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleFileChange"
+            />
           </label>
           <span v-if="form.image" class="ml-auto text-[10px] font-bold text-gray-600">
             Terkompres: <b class="text-brand">{{ imageSizeKb }} KB</b>

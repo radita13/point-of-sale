@@ -1,193 +1,28 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, computed, watch } from 'vue';
-import { toast } from 'vue-sonner';
-import {
-  ClipboardCheck,
-  Save,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Minus,
-  Plus,
-} from 'lucide-vue-next';
-import type { InventoryAdjustment, Product } from '@point-of-sale/shared';
-import { inventoryAdjustmentSchema } from '@point-of-sale/shared';
-import { db } from '@/db/database';
-import { formatQty, makeUuid } from '@/lib/utils';
+import { ClipboardCheck, Save } from 'lucide-vue-next';
 import Card from '@/components/ui/Card.vue';
-import Input from '@/components/ui/Input.vue';
-import Badge from '@/components/ui/Badge.vue';
-import { api } from '@/services/api';
-import { useSyncStore } from '@/stores/sync';
 import Button from '@/components/ui/Button.vue';
+import PaginationControls from '@/components/ui/Pagination.vue';
+import ProductFilterCard from '@/components/common/ProductFilterCard.vue';
+import OpnameItemCard from '@/components/opname/OpnameItemCard.vue';
+import { useStockOpname } from '@/composables/useStockOpname';
 
-const sync = useSyncStore();
-const products = ref<Product[]>([]);
-const changes = ref<Record<string, string>>({});
-
-type StockStatus = 'all' | 'safe' | 'low' | 'out';
-const selectedStockStatus = ref<StockStatus>('all');
-
-const searchQuery = ref('');
-const selectedCategory = ref('Semua');
-const currentPage = ref(1);
-const pageSize = ref(12);
-const scrollEl = ref<HTMLDivElement | null>(null);
-const canScrollLeft = ref(false);
-const canScrollRight = ref(false);
-
-const CATEGORIES = [
-  'Semua',
-  'Beras & Minyak',
-  'Bumbu Dapur',
-  'Minuman',
-  'Makanan & Snack',
-  'Rokok',
-  'Kebutuhan Harian',
-];
-
-async function refresh() {
-  products.value = (await db.products.orderBy('name').toArray()).filter((p) => !p.isDeleted);
-}
-
-const stockCounts = computed(() => {
-  const all = products.value.length;
-  let outCount = 0;
-  let lowCount = 0;
-  let safeCount = 0;
-  for (const p of products.value) {
-    if (p.stock <= 0) outCount++;
-    else if (p.stock <= p.minStock) lowCount++;
-    else safeCount++;
-  }
-  return { all, safe: safeCount, low: lowCount, out: outCount };
-});
-
-function updateScrollState() {
-  const el = scrollEl.value;
-  if (!el) return;
-  const { scrollLeft, scrollWidth, clientWidth } = el;
-  canScrollLeft.value = scrollLeft > 1;
-  canScrollRight.value = scrollLeft + clientWidth < scrollWidth - 1;
-}
-
-function handleWheelScroll(e: WheelEvent) {
-  const el = scrollEl.value;
-  if (!el) return;
-  if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
-    el.scrollLeft += e.deltaY;
-  }
-}
-
-onMounted(() => {
-  refresh();
-  updateScrollState();
-  window.addEventListener('resize', updateScrollState);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateScrollState);
-});
-
-const filteredProducts = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase();
-  return products.value.filter((p) => {
-    const matchCat = selectedCategory.value === 'Semua' || p.category === selectedCategory.value;
-    const matchSearch = !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
-
-    let matchStock = true;
-    if (selectedStockStatus.value === 'safe') matchStock = p.stock > p.minStock;
-    else if (selectedStockStatus.value === 'low') matchStock = p.stock > 0 && p.stock <= p.minStock;
-    else if (selectedStockStatus.value === 'out') matchStock = p.stock <= 0;
-
-    return matchCat && matchSearch && matchStock;
-  });
-});
-
-watch([searchQuery, selectedCategory, selectedStockStatus, pageSize], () => {
-  currentPage.value = 1;
-});
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredProducts.value.length / pageSize.value) || 1;
-});
-
-const paginatedProducts = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  return filteredProducts.value.slice(start, start + pageSize.value);
-});
-
-function getStockDiff(p: Product): number | null {
-  const raw = changes.value[p.id]?.trim();
-  if (raw === undefined || raw === '') return null;
-  const num = Number(raw);
-  if (Number.isNaN(num) || num === p.stock) return null;
-  return Math.round((num - p.stock) * 100) / 100;
-}
-
-function adjustStock(p: Product, delta: number) {
-  const raw = changes.value[p.id]?.trim();
-  const current =
-    raw !== undefined && raw !== '' && !Number.isNaN(Number(raw)) ? Number(raw) : p.stock;
-  const next = Math.max(0, Math.round((current + delta) * 100) / 100);
-  changes.value[p.id] = String(next);
-}
-
-async function saveOpname() {
-  const adjustments: InventoryAdjustment[] = [];
-  const now = Date.now();
-  for (const p of products.value) {
-    const raw = changes.value[p.id]?.trim();
-    if (raw === undefined || raw === '') continue;
-    const newStock = Number(raw);
-    if (Number.isNaN(newStock) || newStock === p.stock) continue;
-    adjustments.push({
-      id: makeUuid(),
-      productId: p.id,
-      quantity: newStock,
-      adjustedAt: now,
-      note: 'stock opname',
-    });
-  }
-  if (adjustments.length === 0) {
-    toast.info('Tidak ada perubahan stok.');
-    return;
-  }
-
-  for (const a of adjustments) {
-    const parse = inventoryAdjustmentSchema.safeParse(a);
-    if (!parse.success) {
-      toast.error(
-        'Koreksi stok tidak valid: ' + (parse.error.issues[0]?.message ?? 'Format salah')
-      );
-      return;
-    }
-  }
-
-  await db.transaction('rw', db.products, async () => {
-    for (const a of adjustments) {
-      await db.products.update(a.productId, { stock: a.quantity, updatedAt: now, isSynced: false });
-    }
-  });
-
-  if (navigator.onLine) {
-    const [, pushed] = await Promise.allSettled([sync.runSync(), api.postAdjustments(adjustments)]);
-    if (pushed.status === 'rejected') {
-      toast.success(
-        `${adjustments.length} koreksi stok tersinkron (produk), catatan audit tertunda.`
-      );
-    } else {
-      toast.success(`${adjustments.length} koreksi stok tersinkron.`);
-    }
-  } else {
-    toast.success(
-      `${adjustments.length} koreksi stok disimpan lokal (offline), akan tersinkron otomatis.`
-    );
-  }
-  changes.value = {};
-  refresh();
-}
-void sync;
+const {
+  changes,
+  selectedStockStatus,
+  searchQuery,
+  selectedCategory,
+  currentPage,
+  pageSize,
+  stockCounts,
+  filteredProducts,
+  totalPages,
+  paginatedProducts,
+  getStockDiff,
+  adjustStock,
+  updateChange,
+  saveOpname,
+} = useStockOpname();
 </script>
 
 <template>
@@ -215,60 +50,20 @@ void sync;
       </div>
     </div>
 
-    <!-- Search & Category Card -->
-    <Card>
-      <div class="flex flex-col gap-3 p-4">
-        <div class="relative">
-          <Search class="text-ink/40 absolute top-1/2 left-3.5 h-5 w-5 -translate-y-1/2" />
-          <Input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Cari nama barang atau SKU..."
-            class="pl-11"
-          />
-        </div>
+    <!-- Search & Category Filter Card -->
+    <ProductFilterCard
+      v-model:search="searchQuery"
+      v-model:category="selectedCategory"
+      inputId="opname-search-input"
+      inputName="opnameSearch"
+    />
 
-        <!-- Filter Kategori -->
-        <div class="relative overflow-hidden rounded-xl">
-          <div
-            v-if="canScrollLeft"
-            class="from-surface pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-linear-to-r to-transparent"
-          ></div>
-
-          <div
-            ref="scrollEl"
-            @scroll="updateScrollState"
-            @wheel.passive="handleWheelScroll"
-            class="flex scrollbar-none items-center gap-1.5 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
-          >
-            <button
-              v-for="cat in CATEGORIES"
-              :key="cat"
-              @click="selectedCategory = cat"
-              :class="
-                selectedCategory === cat
-                  ? 'bg-ink text-white'
-                  : 'bg-canvas text-ink hover:bg-gray-200'
-              "
-              class="neo-press border-ink cursor-pointer rounded-xl border px-3 py-1.5 text-[11px] font-extrabold whitespace-nowrap"
-            >
-              {{ cat }}
-            </button>
-          </div>
-
-          <div
-            v-if="canScrollRight"
-            class="from-surface g-linear-to-l pointer-events-none absolute inset-y-0 right-0 z-10 w-8 to-transparent"
-          ></div>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Filter Status Stok -->
+    <!-- Segmented Filter Status Stok -->
     <Card>
       <div class="p-4">
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <button
+            type="button"
             @click="selectedStockStatus = 'all'"
             :class="
               selectedStockStatus === 'all'
@@ -289,6 +84,7 @@ void sync;
           </button>
 
           <button
+            type="button"
             @click="selectedStockStatus = 'safe'"
             :class="
               selectedStockStatus === 'safe'
@@ -317,6 +113,7 @@ void sync;
           </button>
 
           <button
+            type="button"
             @click="selectedStockStatus = 'low'"
             :class="
               selectedStockStatus === 'low'
@@ -345,6 +142,7 @@ void sync;
           </button>
 
           <button
+            type="button"
             @click="selectedStockStatus = 'out'"
             :class="
               selectedStockStatus === 'out'
@@ -373,7 +171,7 @@ void sync;
       </div>
     </Card>
 
-    <!-- Tabel Opname Grid/Card -->
+    <!-- Tabel Opname Grid -->
     <Card class="p-4">
       <div
         v-if="paginatedProducts.length === 0"
@@ -384,137 +182,28 @@ void sync;
 
       <div v-else class="space-y-3">
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div
+          <OpnameItemCard
             v-for="p in paginatedProducts"
             :key="p.id"
-            :class="
-              getStockDiff(p) === null
-                ? 'border-ink bg-canvas'
-                : getStockDiff(p)! > 0
-                  ? 'border-card-green shadow-hard-md bg-green-50/50'
-                  : 'border-card-coral shadow-hard-md bg-red-50/50'
-            "
-            class="relative flex flex-col justify-between rounded-xl border-2 p-3 transition-all"
-          >
-            <div>
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-[10px] font-black tracking-wider text-gray-500 uppercase">{{
-                  p.category
-                }}</span>
-                <Badge v-if="p.stock === 0" class="bg-card-coral text-white">Habis</Badge>
-                <Badge v-else-if="p.stock <= p.minStock" class="bg-card-yellow text-white"
-                  >Stok Menipis</Badge
-                >
-                <Badge v-else class="bg-card-green text-white">Aman</Badge>
-              </div>
-
-              <h4 class="text-ink mt-1 leading-tight font-extrabold">{{ p.name }}</h4>
-              <p class="font-mono text-[10px] text-gray-500">SKU: {{ p.sku }}</p>
-            </div>
-
-            <div class="border-ink/20 mt-3 border-t pt-2">
-              <div class="flex items-center justify-between gap-2">
-                <label class="text-[11px] font-extrabold text-gray-700">Stok Fisik Baru:</label>
-                <div class="flex items-center gap-3">
-                  <div class="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      class="shrink-0"
-                      @click="adjustStock(p, -1)"
-                    >
-                      <Minus class="h-3.5 w-3.5" />
-                    </Button>
-
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      class="shrink-0"
-                      @click="adjustStock(p, 1)"
-                    >
-                      <Plus class="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-
-                  <Input
-                    :value="changes[p.id] ?? ''"
-                    @input="(e: Event) => (changes[p.id] = (e.target as HTMLInputElement).value)"
-                    type="number"
-                    step="any"
-                    min="0"
-                    :placeholder="formatQty(p.stock)"
-                    class="h-8 w-16 rounded-xl text-right text-xs font-black"
-                  />
-                  <span class="text-[11px] font-bold text-gray-600">{{ p.unit }}</span>
-                </div>
-              </div>
-
-              <!-- Diff Badge -->
-              <div
-                v-if="getStockDiff(p) !== null"
-                class="mt-1.5 flex items-center justify-end text-[11px] font-black"
-              >
-                <span :class="getStockDiff(p)! > 0 ? 'text-green-600' : 'text-red-600'">
-                  Selisih: {{ getStockDiff(p)! > 0 ? '+' : '' }}{{ getStockDiff(p) }} {{ p.unit }}
-                </span>
-              </div>
-            </div>
-          </div>
+            :product="p"
+            :current-change="changes[p.id] ?? ''"
+            :stock-diff="getStockDiff(p)"
+            @adjust="(delta) => adjustStock(p, delta)"
+            @update:change="(val) => updateChange(p.id, val)"
+          />
         </div>
 
-        <!-- Pagination Footer -->
-        <div
-          class="border-ink flex items-center justify-between border-t-2 pt-3 pr-14 text-xs font-bold sm:pr-0"
-        >
-          <div class="whitespace-nowrap text-gray-600">
-            <span class="hidden sm:inline">Menampilkan </span>
-            <span
-              >{{ (currentPage - 1) * pageSize + 1 }}-{{
-                Math.min(currentPage * pageSize, filteredProducts.length)
-              }}</span
-            >
-            <span class="font-normal text-gray-400"> / </span>
-            <span>{{ filteredProducts.length }}</span>
-            <span class="hidden sm:inline"> barang</span>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <div class="flex items-center gap-1">
-              <select
-                :value="pageSize"
-                @change="(e: Event) => (pageSize = Number((e.target as HTMLSelectElement).value))"
-                class="border-ink rounded-lg border-2 bg-white px-1.5 py-1 text-xs font-extrabold focus:outline-none"
-              >
-                <option :value="6">6</option>
-                <option :value="12">12</option>
-                <option :value="24">24</option>
-                <option :value="48">48</option>
-              </select>
-            </div>
-
-            <div class="flex items-center gap-1.5">
-              <Button
-                variant="secondary"
-                size="icon"
-                :disabled="currentPage <= 1"
-                @click="currentPage--"
-              >
-                <ChevronLeft class="h-4 w-4" />
-              </Button>
-              <span class="px-1 text-[11px] whitespace-nowrap"
-                >{{ currentPage }} / {{ totalPages }}</span
-              >
-              <Button
-                variant="secondary"
-                size="icon"
-                :disabled="currentPage >= totalPages"
-                @click="currentPage++"
-              >
-                <ChevronRight class="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <!-- Pagination -->
+        <PaginationControls
+          v-model:page="currentPage"
+          v-model:page-size="pageSize"
+          :total-pages="totalPages"
+          :total-items="filteredProducts.length"
+          :page-size-options="[6, 12, 24, 48]"
+          item-name="barang"
+          id-prefix="opname"
+          class="pr-14 sm:pr-0"
+        />
       </div>
     </Card>
   </div>

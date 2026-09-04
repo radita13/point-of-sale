@@ -112,6 +112,30 @@ export const useAuthStore = defineStore('auth', () => {
     ready.value = true;
   }
 
+  async function login(emailVal: string, passwordVal: string) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailVal.trim(),
+      password: passwordVal,
+    });
+    if (error) throw error;
+
+    if (data.session?.user) {
+      isAuthenticated.value = true;
+      userEmail.value = data.session.user.email ?? null;
+      const meta = data.session.user.user_metadata ?? {};
+      const parsedMeta = {
+        fullName: meta.full_name || meta.name || undefined,
+        phone: meta.phone || data.session.user.phone || undefined,
+        ownerPinHash: meta.owner_pin_hash || undefined,
+      };
+      userMetadata.value = {
+        fullName: parsedMeta.fullName,
+        phone: parsedMeta.phone,
+      };
+      await checkUserChangeAndFetchStore(data.session.user.id, parsedMeta);
+    }
+  }
+
   async function logout() {
     if (supabase) {
       await supabase.auth.signOut();
@@ -167,6 +191,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentStoreId,
     ready,
     init,
+    login,
     logout,
     updateProfile,
   };

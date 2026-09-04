@@ -3,11 +3,12 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Store } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
-import { supabase } from '@/services/supabase';
+import { useAuthStore } from '@/stores';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
 
 const router = useRouter();
+const auth = useAuthStore();
 
 const email = ref('');
 const password = ref('');
@@ -18,13 +19,9 @@ async function handleLogin() {
   error.value = '';
   loading.value = true;
   try {
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.value.trim(),
-      password: password.value,
-    });
-    if (signInError) throw signInError;
+    await auth.login(email.value, password.value);
     toast.success('Selamat datang!');
-    router.push({ name: 'kasir' });
+    await router.push({ name: 'kasir' });
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Gagal masuk. Cek email/password.';
   } finally {
@@ -49,12 +46,26 @@ async function handleLogin() {
 
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div>
-          <label class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Email</label>
-          <Input v-model="email" type="email" placeholder="kasir@pointofsale.id" />
+          <label for="login-email" class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Email</label>
+          <Input
+            id="login-email"
+            name="email"
+            v-model="email"
+            type="email"
+            autocomplete="email"
+            placeholder="kasir@pointofsale.id"
+          />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Password</label>
-          <Input v-model="password" type="password" placeholder="••••••••" />
+          <label for="login-password" class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Password</label>
+          <Input
+            id="login-password"
+            name="password"
+            v-model="password"
+            type="password"
+            autocomplete="current-password"
+            placeholder="••••••••"
+          />
         </div>
 
         <p v-if="error" class="text-card-coral text-center text-xs font-bold">{{ error }}</p>

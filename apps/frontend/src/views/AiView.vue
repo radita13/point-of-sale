@@ -92,8 +92,13 @@ const {
           </h3>
 
           <div class="space-y-2 text-xs font-bold">
-            <label class="block text-gray-700">Pilih Produk Yang Ingin Dipromosikan:</label>
-            <select v-model="selectedPromoProductId" class="w-full rounded-xl border-2 border-ink bg-canvas p-2 focus:outline-none">
+            <label for="ai-promo-product-select" class="block text-gray-700">Pilih Produk Yang Ingin Dipromosikan:</label>
+            <select
+              id="ai-promo-product-select"
+              aria-label="Pilih Produk Yang Ingin Dipromosikan"
+              v-model="selectedPromoProductId"
+              class="w-full rounded-xl border-2 border-ink bg-canvas p-2 focus:outline-none"
+            >
               <option v-for="p in products" :key="p.id" :value="p.id">
                 {{ p.name }} (Rp {{ formatPrice(p.sellingPrice) }}/{{ p.unit }})
               </option>
@@ -141,6 +146,8 @@ const {
 
           <div class="flex items-center gap-2 border-t border-gray-300 pt-2">
             <input
+              id="ai-user-query"
+              name="aiUserQuery"
               type="text"
               v-model="aiUserQuery"
               @keyup.enter="sendAiQuery"
@@ -150,6 +157,7 @@ const {
             <button
               @click="sendAiQuery"
               :disabled="!aiUserQuery || isAiChatting"
+              aria-label="Kirim pertanyaan ke AI"
               class="neo-press rounded-xl border-2 border-ink bg-brand p-2.5 text-white shadow-hard-sm disabled:opacity-50"
             >
               <Send class="h-4 w-4" />

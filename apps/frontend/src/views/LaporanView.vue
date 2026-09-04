@@ -1,17 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import {
-  Calculator,
-  ChartLine,
-  ChevronLeft,
-  ChevronRight,
-  Coins,
-  History,
-  ReceiptText,
-  TrendingUp,
-  Trophy,
-} from 'lucide-vue-next';
-import type { Product, Transaction, TransactionItem } from '@point-of-sale/shared';
+import { computed, onMounted, ref, watch } from 'vue';
+import { ChartLine, History, Trophy } from 'lucide-vue-next';
+import type { Product, Transaction, ReceiptData } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { formatPrice, formatQty } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
@@ -19,8 +9,11 @@ import { useStoreSettingsStore } from '@/stores/storeSettings';
 import { useAuthStore } from '@/stores/auth';
 import { useBluetoothPrinter } from '@/composables/useBluetoothPrinter';
 import Select from '@/components/ui/Select.vue';
-import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
+import Skeleton from '@/components/ui/Skeleton.vue';
+import PaginationControls from '@/components/ui/Pagination.vue';
+import ReceiptModal from '@/components/common/ReceiptModal.vue';
+import ReportMetricsGrid from '@/components/laporan/ReportMetricsGrid.vue';
+import TransactionHistoryRow from '@/components/laporan/TransactionHistoryRow.vue';
 import { useReportMetrics, type ReportFilter } from '@/composables/useReportMetrics';
 import { FILTER_OPTIONS } from '@/constants/product';
 
@@ -37,53 +30,39 @@ const auth = useAuthStore();
 const printer = useBluetoothPrinter();
 
 const showReceiptModal = ref(false);
-const selectedTx = ref<Transaction | null>(null);
+const selectedReceiptData = ref<ReceiptData | null>(null);
 
 const displayPhone = computed(() => {
   return storeSettings.settings.phone?.trim() || auth.userMetadata?.phone?.trim() || '';
 });
 
 function openReceiptModal(tx: Transaction) {
-  selectedTx.value = tx;
+  selectedReceiptData.value = {
+    storeName: storeSettings.settings.storeName,
+    address: storeSettings.settings.address,
+    phone: displayPhone.value,
+    invoiceNo: tx.invoiceNo,
+    date: new Date(tx.timestamp).toLocaleString('id-ID'),
+    cashier: tx.cashierName || storeSettings.settings.cashierName || 'Kasir',
+    items: tx.items.map((i) => ({
+      name: i.productName,
+      qty: i.qty,
+      unit: i.unit,
+      price: i.price,
+      subtotal: i.subtotal,
+    })),
+    total: tx.finalAmount,
+    pay: tx.payAmount,
+    change: tx.changeAmount,
+    paymentMethod: tx.paymentMethod,
+  };
   showReceiptModal.value = true;
 }
 
-function receiptItemDesc(item: TransactionItem): string {
-  const prod = products.value.find((p) => p.id === item.productId);
-  if (prod && prod.piecesPerUnit && prod.piecesPerUnit > 1) {
-    const totalPieces = Math.round(item.qty * prod.piecesPerUnit);
-    const packs = Math.floor(totalPieces / prod.piecesPerUnit);
-    const pieces = totalPieces % prod.piecesPerUnit;
-    const parts: string[] = [];
-    if (packs > 0) parts.push(`${packs} ${prod.unit}`);
-    if (pieces > 0) parts.push(`${pieces} ${prod.smallUnit ?? 'bat'}`);
-    return parts.length ? parts.join(' + ') : `${item.qty} ${item.unit}`;
-  }
-  return `${item.qty} ${item.unit}`;
-}
-
 async function printReceiptNow() {
-  if (!selectedTx.value) return;
+  if (!selectedReceiptData.value) return;
   try {
-    await printer.printReceipt({
-      storeName: storeSettings.settings.storeName,
-      address: storeSettings.settings.address,
-      phone: displayPhone.value,
-      invoiceNo: selectedTx.value.invoiceNo,
-      date: new Date(selectedTx.value.timestamp).toLocaleString('id-ID'),
-      cashier: selectedTx.value.cashierName || storeSettings.settings.cashierName || 'Kasir',
-      items: selectedTx.value.items.map((i) => ({
-        name: i.productName,
-        qty: i.qty,
-        unit: i.unit,
-        price: i.price,
-        subtotal: i.subtotal,
-      })),
-      total: selectedTx.value.finalAmount,
-      pay: selectedTx.value.payAmount,
-      change: selectedTx.value.changeAmount,
-      paymentMethod: selectedTx.value.paymentMethod,
-    });
+    await printer.printReceipt(selectedReceiptData.value);
   } catch (err) {
     console.warn('Gagal cetak struk via bluetooth:', err);
   }
@@ -110,6 +89,13 @@ async function load() {
   products.value = prods;
   currentPage.value = 1;
 }
+
+watch(reportFilter, () => {
+  isLoading.value = true;
+  setTimeout(() => {
+    isLoading.value = false;
+  }, 500);
+});
 
 onMounted(async () => {
   if (navigator.onLine) {
@@ -148,66 +134,19 @@ onMounted(async () => {
       </div>
 
       <div class="flex items-center gap-2">
-        <Select v-model="reportFilter" :options="FILTER_OPTIONS" variant="neo" class="w-44" />
+        <Select
+          id="report-period-filter"
+          name="reportFilter"
+          v-model="reportFilter"
+          :options="FILTER_OPTIONS"
+          variant="neo"
+          class="w-44"
+        />
       </div>
     </div>
 
     <!-- Metric KPI Cards -->
-    <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-      <div
-        class="border-ink bg-brand shadow-hard-md flex flex-col justify-between rounded-2xl border-2 p-4 text-white"
-      >
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-xs font-extrabold tracking-wider text-white/80 uppercase"
-            >Total Omset</span
-          >
-          <span class="rounded-lg bg-white/20 p-1.5"><Coins class="h-4.5 w-4.5" /></span>
-        </div>
-        <h3 class="text-2xl font-black">Rp {{ formatPrice(reportMetrics.totalRevenue) }}</h3>
-        <p class="mt-1 text-[11px] font-bold text-white/80">
-          {{ reportMetrics.count }} Transaksi Selesai
-        </p>
-      </div>
-
-      <div
-        class="border-ink bg-card-green shadow-hard-md flex flex-col justify-between rounded-2xl border-2 p-4 text-white"
-      >
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-xs font-extrabold tracking-wider text-white/80 uppercase"
-            >Estimasi Laba Kotor</span
-          >
-          <span class="rounded-lg bg-white/20 p-1.5"><TrendingUp class="h-4.5 w-4.5" /></span>
-        </div>
-        <h3 class="text-2xl font-black">Rp {{ formatPrice(reportMetrics.totalProfit) }}</h3>
-        <p class="mt-1 text-[11px] font-bold text-white/80">Selisih Omset vs HPP Modal</p>
-      </div>
-
-      <div
-        class="border-ink bg-card-purple shadow-hard-md flex flex-col justify-between rounded-2xl border-2 p-4 text-white"
-      >
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-xs font-extrabold tracking-wider text-white/80 uppercase"
-            >Jumlah Transaksi</span
-          >
-          <span class="rounded-lg bg-white/20 p-1.5"><ReceiptText class="h-4.5 w-4.5" /></span>
-        </div>
-        <h3 class="text-2xl font-black">{{ reportMetrics.count }} Struk</h3>
-        <p class="mt-1 text-[11px] font-bold text-white/80">Nota Terbit</p>
-      </div>
-
-      <div
-        class="border-ink bg-card-coral shadow-hard-md flex flex-col justify-between rounded-2xl border-2 p-4 text-white"
-      >
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-xs font-extrabold tracking-wider text-white/80 uppercase"
-            >Rata-rata Nota</span
-          >
-          <span class="rounded-lg bg-white/20 p-1.5"><Calculator class="h-4.5 w-4.5" /></span>
-        </div>
-        <h3 class="text-2xl font-black">Rp {{ formatPrice(reportMetrics.averageTicket) }}</h3>
-        <p class="mt-1 text-[11px] font-bold text-white/80">Rata-rata Pembelian per Struk</p>
-      </div>
-    </div>
+    <ReportMetricsGrid :metrics="reportMetrics" :is-loading="isLoading" />
 
     <!-- Grid: Produk Terlaris & Riwayat Transaksi -->
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-12">
@@ -228,8 +167,10 @@ onMounted(async () => {
             </span>
           </div>
 
+          <Skeleton v-if="isLoading" type="top-sales" :count="10" />
+
           <div
-            v-if="productSalesSummary.length === 0"
+            v-else-if="productSalesSummary.length === 0"
             class="border-ink bg-canvas mt-3 rounded-xl border py-10 text-center text-xs font-bold text-gray-500"
           >
             Belum ada data penjualan pada periode ini.
@@ -270,38 +211,15 @@ onMounted(async () => {
         </div>
 
         <!-- Pagination Controls Produk Terlaris -->
-        <div
-          v-if="productSalesSummary.length > 0"
-          class="border-ink flex items-center justify-between border-t-2 pt-3 text-xs font-extrabold"
-        >
-          <div>
-            Menampilkan {{ (topProductsPage - 1) * 10 + 1 }} -
-            {{ Math.min(topProductsPage * 10, productSalesSummary.length) }} /
-            {{ productSalesSummary.length }}
-          </div>
-
-          <div class="flex items-center gap-1.5 pr-14 sm:pr-0">
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="topProductsPage === 1"
-              @click="topProductsPage--"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronLeft class="h-4 w-4" />
-            </Button>
-            <span class="px-2"> {{ topProductsPage }} / {{ totalTopProductsPages }} </span>
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="topProductsPage === totalTopProductsPages"
-              @click="topProductsPage++"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronRight class="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          v-if="!isLoading && productSalesSummary.length > 0"
+          v-model:page="topProductsPage"
+          :total-pages="totalTopProductsPages"
+          :total-items="productSalesSummary.length"
+          :page-size="10"
+          item-name="item"
+          id-prefix="top-products"
+        />
       </div>
 
       <!-- Riwayat Transaksi -->
@@ -321,11 +239,7 @@ onMounted(async () => {
             </span>
           </div>
 
-          <div v-if="isLoading" class="mt-3 flex min-h-24 items-center justify-center">
-            <div
-              class="border-ink bg-brand shadow-hard-sm h-9 w-9 animate-spin rounded-xl border-2"
-            ></div>
-          </div>
+          <Skeleton v-if="isLoading" type="transactions" :count="pageSize" />
 
           <div
             v-else-if="filteredTransactions.length === 0"
@@ -335,167 +249,34 @@ onMounted(async () => {
           </div>
 
           <div v-else class="mt-3 flex-1 space-y-2.5">
-            <div
+            <TransactionHistoryRow
               v-for="tx in paginatedTransactions"
               :key="tx.id"
-              class="border-ink bg-canvas shadow-hard-sm flex flex-col gap-2 rounded-xl border-2 p-3"
-            >
-              <div class="flex items-center justify-between gap-2 border-b border-gray-300 pb-2">
-                <div class="flex items-center gap-2">
-                  <span
-                    class="border-ink rounded border bg-white px-2 py-0.5 font-mono text-xs font-extrabold"
-                    >{{ tx.invoiceNo }}</span
-                  >
-                  <span class="text-[10px] font-bold text-gray-600">{{
-                    new Date(tx.timestamp).toLocaleString('id-ID')
-                  }}</span>
-                </div>
-                <Badge :class="tx.isSynced ? 'bg-card-green text-white' : 'bg-offline text-ink'">
-                  {{ tx.isSynced ? 'SYNCED' : 'OFFLINE' }}
-                </Badge>
-              </div>
-              <div class="flex items-center justify-between text-xs font-bold">
-                <span class="truncate text-[11px] text-gray-700">{{
-                  tx.items.map((i) => `${i.productName} (${i.qty}${i.unit})`).join(', ')
-                }}</span>
-                <span class="text-brand shrink-0 font-extrabold"
-                  >Rp {{ formatPrice(tx.finalAmount) }}</span
-                >
-              </div>
-              <div class="flex items-center justify-between text-[10px] font-bold text-gray-500">
-                <span>
-                  Bayar: Rp {{ formatPrice(tx.payAmount) }} • Kembali: Rp
-                  {{ formatPrice(tx.changeAmount) }}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  @click="openReceiptModal(tx)"
-                  class="h-7 cursor-pointer px-2 text-[11px] font-extrabold"
-                >
-                  <ReceiptText class="text-brand h-3.5 w-3.5" />
-                  <span>Detail Struk</span>
-                </Button>
-              </div>
-            </div>
+              :transaction="tx"
+              @view-receipt="openReceiptModal(tx)"
+            />
           </div>
         </div>
 
         <!-- Pagination Controls Riwayat Transaksi -->
-        <div
-          v-if="filteredTransactions.length > 0"
-          class="border-ink flex items-center justify-between border-t-2 pt-3 text-xs font-extrabold"
-        >
-          <div class="text-gray-600">
-            Menampilkan {{ (currentPage - 1) * pageSize + 1 }}
-            -
-            {{ Math.min(currentPage * pageSize, filteredTransactions.length) }}
-            / {{ filteredTransactions.length }}
-          </div>
-
-          <div class="flex items-center gap-1.5">
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="currentPage === 1"
-              @click="currentPage--"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronLeft class="h-4 w-4" />
-            </Button>
-            <span class="px-2"> {{ currentPage }} / {{ totalPages }} </span>
-            <Button
-              variant="secondary"
-              size="icon"
-              :disabled="currentPage === totalPages"
-              @click="currentPage++"
-              class="h-8 w-8 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronRight class="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          v-if="!isLoading && filteredTransactions.length > 0"
+          v-model:page="currentPage"
+          :total-pages="totalPages"
+          :total-items="filteredTransactions.length"
+          :page-size="pageSize"
+          item-name="Nota"
+          id-prefix="transactions"
+        />
       </div>
     </div>
 
-    <!-- Receipt Modal -->
-    <div
-      v-if="showReceiptModal && selectedTx"
-      class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4"
-    >
-      <div
-        class="border-ink shadow-hard-xl w-full max-w-sm rounded-2xl border-2 bg-white p-6 font-mono text-xs"
-      >
-        <div class="border-ink mb-3 border-b-2 border-dashed pb-3 text-center">
-          <h3 class="text-ink text-sm font-extrabold uppercase">
-            {{ storeSettings.settings.storeName }}
-          </h3>
-          <p class="text-[10px] text-gray-600">
-            {{ storeSettings.settings.address }}
-          </p>
-          <p v-if="displayPhone" class="text-[10px] text-gray-600">
-            {{ displayPhone }}
-          </p>
-        </div>
-
-        <div class="mb-3 space-y-1 text-[11px]">
-          <div class="flex justify-between">
-            <span>No. Nota:</span><span class="font-bold">{{ selectedTx.invoiceNo }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>Tanggal:</span
-            ><span>{{ new Date(selectedTx.timestamp).toLocaleString('id-ID') }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>Kasir:</span><span class="font-bold">{{ selectedTx.cashierName || storeSettings.settings.cashierName || 'Kasir' }}</span>
-          </div>
-        </div>
-
-        <div class="border-ink mb-3 space-y-1.5 border-y border-dashed py-2">
-          <div v-for="item in selectedTx.items" :key="item.productId" class="flex justify-between">
-            <div>
-              <div class="font-bold">{{ item.productName }}</div>
-              <div class="text-[10px] text-gray-600">
-                {{ receiptItemDesc(item) }}
-              </div>
-            </div>
-            <div class="font-bold">Rp {{ formatPrice(item.subtotal) }}</div>
-          </div>
-        </div>
-
-        <div class="mb-4 space-y-1 text-[11px] font-bold">
-          <div class="flex justify-between">
-            <span>TOTAL:</span
-            ><span class="text-sm">Rp {{ formatPrice(selectedTx.finalAmount) }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>BAYAR (CASH):</span><span>Rp {{ formatPrice(selectedTx.payAmount) }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>KEMBALI:</span><span>Rp {{ formatPrice(selectedTx.changeAmount) }}</span>
-          </div>
-        </div>
-
-        <div
-          class="border-ink mb-4 border-t border-dashed pt-2 text-center text-[10px] whitespace-pre-line text-gray-600"
-        >
-          {{ storeSettings.settings.receiptFooter }}
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 font-sans">
-          <Button
-            @click="showReceiptModal = false"
-            class="cursor-pointer"
-            variant="secondary"
-            size="md"
-          >
-            Tutup
-          </Button>
-          <Button @click="printReceiptNow" variant="primary" class="cursor-pointer" size="md">
-            <ReceiptText class="h-4 w-4" /> Cetak
-          </Button>
-        </div>
-      </div>
-    </div>
+    <!-- Reusable Receipt Modal -->
+    <ReceiptModal
+      :open="showReceiptModal"
+      :data="selectedReceiptData"
+      @close="showReceiptModal = false"
+      @print="printReceiptNow"
+    />
   </div>
 </template>
