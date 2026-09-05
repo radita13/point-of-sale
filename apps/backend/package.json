@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
     "postinstall": "prisma generate",
-    "vercel-build": "pnpm --filter @point-of-sale/shared build && prisma generate && tsc -p tsconfig.json",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "vercel-build": "pnpm --filter @point-of-sale/shared build && prisma generate",
+    "build": "prisma generate && tsup src/server.ts --format esm --out-dir dist --clean",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
@@ -21,6 +21,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "zod": "^3.24.1"
   },

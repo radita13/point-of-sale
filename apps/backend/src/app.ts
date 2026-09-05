@@ -5,13 +5,16 @@ import express, {
   type Response,
 } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
-import productsRouter from "./routes/products.routes.js";
-import inventoryRouter from "./routes/inventory.routes.js";
-import transactionsRouter from "./routes/transactions.routes.js";
-import storesRouter from "./routes/stores.routes.js";
+import productsRouter from "./routes/products.routes";
+import inventoryRouter from "./routes/inventory.routes";
+import transactionsRouter from "./routes/transactions.routes";
+import storesRouter from "./routes/stores.routes";
 
 const app = express();
+
+app.use(helmet());
 
 const allowedOrigins = new Set(
   (process.env.CORS_ORIGINS ?? "")
@@ -32,7 +35,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "5mb" }));
 
 const apiLimiter = rateLimit({
   windowMs: 60_000,

@@ -85,7 +85,7 @@ model TransactionItem {
 }
 
 model InventoryAdjustment {
-  id         String   @id @db.Uuid // local UUID v4
+  id         String   @id @db.Uuid
   storeId    String   @db.Uuid
   store      Store    @relation(fields: [storeId], references: [id])
   productId  String   @db.Uuid

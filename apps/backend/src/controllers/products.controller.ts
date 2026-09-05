@@ -1,10 +1,10 @@
 import type { Response } from "express";
-import { prisma } from "../db.js";
-import { toPrismaError } from "../lib/errors.js";
-import { requireStoreAccess } from "../middleware/store-access.js";
-import { uploadProductImage } from "../lib/storage.js";
-import type { ValidatedRequest } from "../types/http.js";
-import type { Prisma } from "../generated/client/index.js";
+import { prisma } from "../db";
+import { toPrismaError } from "../lib/errors";
+import { requireStoreAccess } from "../middleware/store-access";
+import { uploadProductImage, deleteProductImage } from "../lib/storage";
+import type { ValidatedRequest } from "../types/http";
+import type { Prisma } from "../generated/client";
 import type {
   GetProductsQuery,
   ProductSyncPayload,
@@ -73,6 +73,7 @@ export async function getProducts(
         smallPrice: p.smallPrice ? p.smallPrice.toNumber() : undefined,
         image: p.image,
         isSynced: true,
+        isDeleted: p.isDeleted,
         updatedAt: p.updatedAt.getTime(),
       }));
 
@@ -110,6 +111,7 @@ export async function getProducts(
         smallPrice: p.smallPrice ? p.smallPrice.toNumber() : undefined,
         image: p.image,
         isSynced: true,
+        isDeleted: p.isDeleted,
         updatedAt: p.updatedAt.getTime(),
       })),
     );
@@ -130,8 +132,13 @@ export async function syncProducts(
 
   for (const p of products) {
     try {
-      let imageUrl: string | null | undefined = p.image;
-      if (p.image?.startsWith("data:")) {
+      if (p.isDeleted) {
+        // Hapus file fisik gambar dari Supabase storage jika produk dihapus
+        await deleteProductImage(p.id);
+      }
+
+      let imageUrl: string | null | undefined = p.isDeleted ? null : p.image;
+      if (!p.isDeleted && p.image?.startsWith("data:")) {
         try {
           imageUrl = await uploadProductImage(p.image, p.id);
         } catch (imgErr) {

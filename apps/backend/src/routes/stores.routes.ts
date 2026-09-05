@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authGuard } from "../middleware/auth.js";
-import { asyncHandler, validate } from "../middleware/validate.js";
-import { getMyStore, updateMyStore } from "../controllers/stores.controller.js";
+import { authGuard } from "../middleware/auth";
+import { asyncHandler, validate } from "../middleware/validate";
+import { getMyStore, updateMyStore } from "../controllers/stores.controller";
 import { updateStoreSchema } from "@point-of-sale/shared";
 
 const router = Router();

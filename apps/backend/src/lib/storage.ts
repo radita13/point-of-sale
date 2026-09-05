@@ -75,3 +75,22 @@ export async function uploadProductImage(
   }
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
+
+export async function deleteProductImage(productId: string): Promise<void> {
+  if (!storageConfigured()) return;
+  const extensions = ["png", "webp", "jpg", "jpeg"];
+  const prefixes = extensions.map((ext) => `${productId}.${ext}`);
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+      method: "DELETE",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ prefixes }),
+    });
+    if (!res.ok) {
+      console.warn(`[storage] Failed to delete image for product ${productId}: HTTP ${res.status}`);
+    }
+  } catch (err) {
+    console.warn(`[storage] Error deleting image for product ${productId}:`, err);
+  }
+}

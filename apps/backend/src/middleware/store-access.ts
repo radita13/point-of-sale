@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import { prisma } from "../db.js";
-import type { Store } from "../generated/client/index.js";
-import "./auth.js";
+import { prisma } from "../db";
+import type { Store } from "../generated/client";
+import "./auth";
 
 export async function resolveOrCreateUserStore(
   userId: string,

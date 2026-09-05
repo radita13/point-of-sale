@@ -1,9 +1,9 @@
 import type { Response } from "express";
-import { prisma } from "../db.js";
-import { toPrismaError } from "../lib/errors.js";
-import { requireStoreAccess } from "../middleware/store-access.js";
-import type { ValidatedRequest } from "../types/http.js";
-import type { Prisma } from "../generated/client/index.js";
+import { prisma } from "../db";
+import { toPrismaError } from "../lib/errors";
+import { requireStoreAccess } from "../middleware/store-access";
+import type { ValidatedRequest } from "../types/http";
+import type { Prisma } from "../generated/client";
 import type {
   GetTransactionsQuery,
   PaymentMethod,

@@ -1,7 +1,7 @@
 import type { Response } from "express";
-import type { ValidatedRequest } from "../types/http.js";
-import { resolveOrCreateUserStore } from "../middleware/store-access.js";
-import { prisma } from "../db.js";
+import type { ValidatedRequest } from "../types/http";
+import { resolveOrCreateUserStore } from "../middleware/store-access";
+import { prisma } from "../db";
 import type { UpdateStorePayload } from "@point-of-sale/shared";
 
 export async function getMyStore(

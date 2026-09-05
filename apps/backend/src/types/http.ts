@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import type { SupabaseAuthResult } from "../middleware/auth.js";
+import type { SupabaseAuthResult } from "../middleware/auth";
 
 declare global {
   namespace Express {

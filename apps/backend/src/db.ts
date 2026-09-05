@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated/client/index.js';
+import { PrismaClient } from './generated/client';
 
 declare global {
   // eslint-disable-next-line no-var
