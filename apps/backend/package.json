@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
     "postinstall": "prisma generate",
-    "vercel-build": "pnpm --filter @point-of-sale/shared build && prisma generate",
-    "build": "prisma generate && tsup src/server.ts --format esm --out-dir dist --clean",
+    "vercel-build": "pnpm --filter @point-of-sale/shared build && prisma generate && tsup src/app.ts --format esm --out-dir dist",
+    "build": "prisma generate && tsup src/server.ts src/app.ts --format esm --out-dir dist --clean",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
