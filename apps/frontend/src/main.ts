@@ -24,7 +24,7 @@ async function bootstrap() {
     sessionStorage.removeItem('pos_local_cleared');
   } else {
     db.products.count().then((productCount) => {
-      if (productCount === 0 && navigator.onLine) {
+      if (auth.isAuthenticated && productCount === 0 && navigator.onLine) {
         useSyncStore().restoreProductsFromServer();
       }
     });

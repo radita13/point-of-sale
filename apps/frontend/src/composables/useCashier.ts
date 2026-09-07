@@ -47,7 +47,13 @@ export function useCashier() {
   async function loadProducts(isInitial = false) {
     try {
       const startTime = Date.now();
-      const data = (await db.products.toArray()).filter((p) => !p.isDeleted);
+      let data = (await db.products.toArray()).filter((p) => !p.isDeleted);
+
+      if (isInitial && data.length === 0 && navigator.onLine) {
+        await sync.restoreProductsFromServer();
+        data = (await db.products.toArray()).filter((p) => !p.isDeleted);
+      }
+
       if (isInitial) {
         const elapsed = Date.now() - startTime;
         const minDisplayTime = 500;
@@ -67,15 +73,6 @@ export function useCashier() {
       loadProducts(false);
     });
     loadProducts(true);
-    if (navigator.onLine) {
-      db.products.count().then((count) => {
-        if (count === 0) {
-          sync.restoreProductsFromServer().then((restored) => {
-            if (restored > 0) loadProducts(false);
-          });
-        }
-      });
-    }
   });
 
   onUnmounted(() => {

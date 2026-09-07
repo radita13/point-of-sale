@@ -9,21 +9,23 @@ const { canInstall, isInstalled, isDismissed, isIos, promptInstall, dismiss } = 
 <template>
   <div
     v-if="!isInstalled && !isDismissed && (canInstall || isIos)"
-    class="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md rounded-2xl border-2 border-ink bg-surface p-4 shadow-hard-xl sm:bottom-6"
+    class="border-ink bg-surface shadow-hard-xl fixed right-4 bottom-4 left-4 z-50 mx-auto max-w-md rounded-2xl border-2 p-4 sm:bottom-6"
   >
     <div class="flex items-start justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2 border-ink bg-card-yellow text-ink shadow-hard-sm">
+        <div
+          class="border-ink bg-card-yellow text-ink shadow-hard-sm flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-2"
+        >
           <Download class="h-6 w-6" />
         </div>
         <div>
-          <h4 class="text-sm font-extrabold text-ink">Instal Aplikasi Point of Sale</h4>
+          <h4 class="text-ink text-sm font-extrabold">Instal Aplikasi Point of Sale</h4>
           <p class="text-xs font-semibold text-gray-700">
             Akses kasir lebih cepat &amp; 100% offline tanpa browser!
           </p>
         </div>
       </div>
-      <button @click="dismiss" class="text-gray-500 hover:text-ink">
+      <button @click="dismiss" class="hover:text-ink text-gray-500">
         <X class="h-5 w-5" />
       </button>
     </div>
@@ -36,12 +38,19 @@ const { canInstall, isInstalled, isDismissed, isIos, promptInstall, dismiss } = 
     </div>
 
     <!-- iOS Safari Guide -->
-    <div v-else-if="isIos" class="mt-3 rounded-xl border border-ink bg-canvas p-2.5 text-[11px] font-bold text-ink">
-      <p class="flex items-center gap-1">
-        <span>Tekan tombol Bagikan</span>
-        <Share class="h-3.5 w-3.5 inline text-brand" />
-        <span>lalu pilih <b>"Tambah ke Layar Utama"</b></span>
-      </p>
+    <div
+      v-else-if="isIos"
+      class="border-ink bg-canvas text-ink mt-3 rounded-xl border p-2.5 text-[11px] font-bold"
+    >
+      <ul class="flex list-inside list-disc flex-col">
+        <li>
+          <div class="inline-flex flex-row gap-1">
+            <span>Tekan tombol</span>
+            <Share class="text-brand inline h-3 w-3.5" />
+          </div>
+        </li>
+        <li>lalu pilih <b>"Tambah ke Layar Utama"</b></li>
+      </ul>
     </div>
   </div>
 </template>
