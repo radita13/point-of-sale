@@ -1,117 +1,33 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
 import { ChartLine, History, Trophy } from 'lucide-vue-next';
-import type { Product, Transaction, ReceiptData } from '@point-of-sale/shared';
-import { db } from '@/db/database';
 import { formatPrice, formatQty } from '@/lib/utils';
-import { useSyncStore } from '@/stores/sync';
-import { useStoreSettingsStore } from '@/stores/storeSettings';
-import { useAuthStore } from '@/stores/auth';
-import { useBluetoothPrinter } from '@/composables/useBluetoothPrinter';
 import Select from '@/components/ui/Select.vue';
 import Skeleton from '@/components/ui/Skeleton.vue';
 import PaginationControls from '@/components/ui/Pagination.vue';
 import ReceiptModal from '@/components/common/ReceiptModal.vue';
 import ReportMetricsGrid from '@/components/laporan/ReportMetricsGrid.vue';
 import TransactionHistoryRow from '@/components/laporan/TransactionHistoryRow.vue';
-import { useReportMetrics, type ReportFilter } from '@/composables/useReportMetrics';
-import { FILTER_OPTIONS } from '@/constants/product';
-
-const reportFilter = ref<ReportFilter>('today');
-const transactions = ref<Transaction[]>([]);
-const products = ref<Product[]>([]);
-const isLoading = ref(true);
-const restoring = ref(false);
-const restoreError = ref<string | null>(null);
-const pageSize = 5;
-const sync = useSyncStore();
-const storeSettings = useStoreSettingsStore();
-const auth = useAuthStore();
-const printer = useBluetoothPrinter();
-
-const showReceiptModal = ref(false);
-const selectedReceiptData = ref<ReceiptData | null>(null);
-
-const displayPhone = computed(() => {
-  return storeSettings.settings.phone?.trim() || auth.userMetadata?.phone?.trim() || '';
-});
-
-function openReceiptModal(tx: Transaction) {
-  selectedReceiptData.value = {
-    storeName: storeSettings.settings.storeName,
-    address: storeSettings.settings.address,
-    phone: displayPhone.value,
-    invoiceNo: tx.invoiceNo,
-    date: new Date(tx.timestamp).toLocaleString('id-ID'),
-    cashier: tx.cashierName || storeSettings.settings.cashierName || 'Kasir',
-    items: tx.items.map((i) => ({
-      name: i.productName,
-      qty: i.qty,
-      unit: i.unit,
-      price: i.price,
-      subtotal: i.subtotal,
-    })),
-    total: tx.finalAmount,
-    pay: tx.payAmount,
-    change: tx.changeAmount,
-    paymentMethod: tx.paymentMethod,
-  };
-  showReceiptModal.value = true;
-}
-
-async function printReceiptNow() {
-  if (!selectedReceiptData.value) return;
-  try {
-    await printer.printReceipt(selectedReceiptData.value);
-  } catch (err) {
-    console.warn('Gagal cetak struk via bluetooth:', err);
-  }
-}
+import { useReport } from '@/composables/report/useReport';
+import { FILTER_OPTIONS } from '@/constants/product.constants';
 
 const {
+  reportFilter,
+  reportMetrics,
+  isLoading,
+  pageSize,
   currentPage,
   totalPages,
   topProductsPage,
   totalTopProductsPages,
   filteredTransactions,
   paginatedTransactions,
-  reportMetrics,
   productSalesSummary,
   paginatedTopProducts,
-} = useReportMetrics(transactions, products, reportFilter, pageSize, 10);
-
-async function load() {
-  const [txs, prods] = await Promise.all([
-    db.transactions.orderBy('timestamp').reverse().toArray(),
-    db.products.toArray(),
-  ]);
-  transactions.value = txs;
-  products.value = prods;
-  currentPage.value = 1;
-}
-
-watch(reportFilter, () => {
-  isLoading.value = true;
-  setTimeout(() => {
-    isLoading.value = false;
-  }, 500);
-});
-
-onMounted(async () => {
-  if (navigator.onLine) {
-    restoring.value = true;
-    restoreError.value = null;
-    try {
-      const n = await sync.restoreTransactionsFromServer();
-      if (n > 0) await load();
-    } finally {
-      restoring.value = false;
-    }
-    if (sync.lastError) restoreError.value = sync.lastError;
-  }
-  await load();
-  isLoading.value = false;
-});
+  showReceiptModal,
+  selectedReceiptData,
+  openReceiptModal,
+  printReceiptNow,
+} = useReport();
 </script>
 
 <template>
@@ -145,12 +61,9 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Metric KPI Cards -->
     <ReportMetricsGrid :metrics="reportMetrics" :is-loading="isLoading" />
 
-    <!-- Grid: Produk Terlaris & Riwayat Transaksi -->
     <div class="grid grid-cols-1 gap-5 lg:grid-cols-12">
-      <!-- Produk Terlaris -->
       <div
         class="border-ink bg-surface shadow-hard-md flex h-fit flex-col justify-between space-y-3 rounded-2xl border-2 p-4 lg:col-span-5"
       >
@@ -210,7 +123,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Pagination Controls Produk Terlaris -->
         <PaginationControls
           v-if="!isLoading && productSalesSummary.length > 0"
           v-model:page="topProductsPage"
@@ -222,7 +134,6 @@ onMounted(async () => {
         />
       </div>
 
-      <!-- Riwayat Transaksi -->
       <div
         class="border-ink bg-surface shadow-hard-md flex flex-col justify-between space-y-3 rounded-2xl border-2 p-4 lg:col-span-7"
       >
@@ -258,7 +169,6 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Pagination Controls Riwayat Transaksi -->
         <PaginationControls
           v-if="!isLoading && filteredTransactions.length > 0"
           v-model:page="currentPage"
@@ -271,7 +181,6 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Reusable Receipt Modal -->
     <ReceiptModal
       :open="showReceiptModal"
       :data="selectedReceiptData"

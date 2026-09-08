@@ -60,7 +60,6 @@ const {
 
       <Skeleton v-if="isLoadingProducts" type="card" :count="6" />
 
-      <!-- Empty State -->
       <div
         v-else-if="filteredProducts.length === 0"
         class="border-ink bg-surface rounded-2xl border-2 p-10 text-center"
@@ -123,7 +122,7 @@ const {
         </div>
       </div>
 
-      <!-- Desktop Checkout Panel -->
+      <!-- Desktop Checkout -->
       <CheckoutPanel
         :subtotal="cart.subtotal"
         :final-amount="finalAmount"
@@ -218,7 +217,7 @@ const {
               />
             </div>
 
-            <!-- Mobile Checkout Panel -->
+            <!-- Mobile Checkout -->
             <CheckoutPanel
               :subtotal="cart.subtotal"
               :final-amount="finalAmount"

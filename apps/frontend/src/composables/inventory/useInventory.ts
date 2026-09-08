@@ -5,7 +5,7 @@ import { productSyncSchema } from '@point-of-sale/shared';
 import { db } from '@/db/database';
 import { makeUuid } from '@/lib/utils';
 import { useSyncStore } from '@/stores/sync';
-import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product';
+import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product.constants';
 
 export function useInventory() {
   function emptyForm(): Product {

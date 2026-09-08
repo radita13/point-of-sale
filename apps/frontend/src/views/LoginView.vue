@@ -1,33 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { Store } from 'lucide-vue-next';
-import { toast } from 'vue-sonner';
-import { useAuthStore } from '@/stores';
 import Input from '@/components/ui/Input.vue';
 import Button from '@/components/ui/Button.vue';
+import { useLogin } from '@/composables/auth/useLogin';
 
-const router = useRouter();
-const auth = useAuthStore();
-
-const email = ref('');
-const password = ref('');
-const error = ref('');
-const loading = ref(false);
-
-async function handleLogin() {
-  error.value = '';
-  loading.value = true;
-  try {
-    await auth.login(email.value, password.value);
-    toast.success('Selamat datang!');
-    await router.push({ name: 'kasir' });
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Gagal masuk. Cek email/password.';
-  } finally {
-    loading.value = false;
-  }
-}
+const { handleLogin, email, password, error, isLoading } = useLogin();
 </script>
 
 <template>
@@ -46,7 +23,11 @@ async function handleLogin() {
 
       <form @submit.prevent="handleLogin" class="space-y-4">
         <div>
-          <label for="login-email" class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Email</label>
+          <label
+            for="login-email"
+            class="mb-1 block text-xs font-extrabold tracking-wider uppercase"
+            >Email</label
+          >
           <Input
             id="login-email"
             name="email"
@@ -57,7 +38,11 @@ async function handleLogin() {
           />
         </div>
         <div>
-          <label for="login-password" class="mb-1 block text-xs font-extrabold tracking-wider uppercase">Password</label>
+          <label
+            for="login-password"
+            class="mb-1 block text-xs font-extrabold tracking-wider uppercase"
+            >Password</label
+          >
           <Input
             id="login-password"
             name="password"
@@ -70,8 +55,8 @@ async function handleLogin() {
 
         <p v-if="error" class="text-card-coral text-center text-xs font-bold">{{ error }}</p>
 
-        <Button type="submit" class="w-full" :disabled="loading">
-          {{ loading ? 'Memproses...' : 'Masuk' }}
+        <Button type="submit" class="w-full" :disabled="isLoading">
+          {{ isLoading ? 'Memproses...' : 'Masuk' }}
         </Button>
       </form>
     </div>

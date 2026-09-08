@@ -5,7 +5,7 @@ import { useSyncStore } from '@/stores/sync';
 import { useStoreSettingsStore } from '@/stores/storeSettings';
 import { useAuthStore } from '@/stores/auth';
 import { useBluetoothPrinter } from '@/composables/useBluetoothPrinter';
-import { useReportMetrics, type ReportFilter } from '@/composables/useReportMetrics';
+import { useReportMetrics, type ReportFilter } from '@/composables/report/useReportMetrics';
 
 export function useReport() {
   const reportFilter = ref<ReportFilter>('today');

@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button.vue';
 import Select from '@/components/ui/Select.vue';
 import Input from '@/components/ui/Input.vue';
 import Label from '@/components/ui/Label.vue';
-import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product';
+import { PRODUCT_CATEGORIES as CATEGORIES, UNITS } from '@/constants/product.constants';
 const BarcodeScannerModal = defineAsyncComponent(
   () => import('@/components/common/BarcodeScannerModal.vue')
 );

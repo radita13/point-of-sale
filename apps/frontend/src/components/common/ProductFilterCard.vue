@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Search } from 'lucide-vue-next';
-import { CATEGORIES } from '@/constants/product';
+import { CATEGORIES } from '@/constants/product.constants';
 import Card from '@/components/ui/Card.vue';
 import Input from '@/components/ui/Input.vue';
 import Label from '@/components/ui/Label.vue';

@@ -2,7 +2,7 @@
 import { PackageOpen } from 'lucide-vue-next';
 import type { Product } from '@point-of-sale/shared';
 import { formatPrice, formatQty } from '@/lib/utils';
-import { getCategoryCardColor } from '@/constants/product';
+import { getCategoryCardColor } from '@/constants/product.constants';
 import Badge from '@/components/ui/Badge.vue';
 
 defineProps<{

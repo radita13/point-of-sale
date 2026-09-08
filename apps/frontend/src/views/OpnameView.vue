@@ -50,7 +50,6 @@ const {
       </div>
     </div>
 
-    <!-- Search & Category Filter Card -->
     <ProductFilterCard
       v-model:search="searchQuery"
       v-model:category="selectedCategory"
@@ -58,7 +57,6 @@ const {
       inputName="opnameSearch"
     />
 
-    <!-- Segmented Filter Status Stok -->
     <Card>
       <div class="p-4">
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -171,7 +169,6 @@ const {
       </div>
     </Card>
 
-    <!-- Tabel Opname Grid -->
     <Card class="p-4">
       <div
         v-if="paginatedProducts.length === 0"
@@ -193,7 +190,6 @@ const {
           />
         </div>
 
-        <!-- Pagination -->
         <PaginationControls
           v-model:page="currentPage"
           v-model:page-size="pageSize"
