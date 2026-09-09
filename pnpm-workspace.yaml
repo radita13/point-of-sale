@@ -12,3 +12,4 @@ allowBuilds:
   workbox-build: true
   '@prisma/engines': true
   '@scarf/scarf': false
+  '@google/genai': true
