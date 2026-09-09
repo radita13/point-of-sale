@@ -150,9 +150,14 @@ export async function syncProducts(
         }
       }
 
-      const existing = await prisma.product.findFirst({
+      let existing = await prisma.product.findFirst({
         where: { storeId, serverId: p.id },
       });
+      if (!existing && p.sku) {
+        existing = await prisma.product.findFirst({
+          where: { storeId, sku: p.sku },
+        });
+      }
 
       const clientUpdated = new Date(p.updatedAt);
       if (existing && existing.updatedAt > clientUpdated) {
@@ -166,45 +171,54 @@ export async function syncProducts(
       const costPriceUpdate =
         p.costPrice !== undefined ? Number(p.costPrice) : undefined;
 
-      const product = await prisma.product.upsert({
-        where: { sku: p.sku },
-        update: {
-          name: p.name,
-          category: p.category,
-          costPrice: p.costPrice,
-          sellingPrice: p.sellingPrice,
-          stock: Number(p.stock),
-          minStock: Number(p.minStock),
-          unit: p.unit,
-          step: p.step ? Number(p.step) : null,
-          piecesPerUnit: p.piecesPerUnit ?? null,
-          smallUnit: p.smallUnit ?? null,
-          smallPrice: p.smallPrice ? Number(p.smallPrice) : null,
-          isDeleted: p.isDeleted ?? false,
-          updatedAt: clientUpdated,
-          storeId,
-          ...imageUpdate,
-        },
-        create: {
-          serverId: p.id,
-          sku: p.sku,
-          name: p.name,
-          category: p.category,
-          costPrice: p.costPrice,
-          sellingPrice: p.sellingPrice,
-          stock: Number(p.stock),
-          minStock: Number(p.minStock),
-          unit: p.unit,
-          step: p.step ? Number(p.step) : null,
-          piecesPerUnit: p.piecesPerUnit ?? null,
-          smallUnit: p.smallUnit ?? null,
-          smallPrice: p.smallPrice ? Number(p.smallPrice) : null,
-          isDeleted: p.isDeleted ?? false,
-          image: imageUrl ?? null,
-          updatedAt: clientUpdated,
-          storeId,
-        },
-      });
+      const data = {
+        name: p.name,
+        category: p.category,
+        costPrice: p.costPrice,
+        sellingPrice: p.sellingPrice,
+        stock: Number(p.stock),
+        minStock: Number(p.minStock),
+        unit: p.unit,
+        step: p.step ? Number(p.step) : null,
+        piecesPerUnit: p.piecesPerUnit ?? null,
+        smallUnit: p.smallUnit ?? null,
+        smallPrice: p.smallPrice ? Number(p.smallPrice) : null,
+        isDeleted: p.isDeleted ?? false,
+        updatedAt: clientUpdated,
+        storeId,
+        ...imageUpdate,
+      };
+
+      if (!existing && !p.sku) {
+        console.warn(`[products.sync] Skip product ${p.id}: missing SKU.`);
+        continue;
+      }
+
+      let product;
+      try {
+        product = existing
+          ? await prisma.product.update({ where: { id: existing.id }, data })
+          : await prisma.product.create({
+              data: {
+                serverId: p.id,
+                sku: p.sku!,
+                ...data,
+                image: imageUrl ?? null,
+              },
+            });
+      } catch (e: unknown) {
+        const code =
+          e && typeof e === "object" && "code" in e
+            ? (e as { code: string }).code
+            : undefined;
+        if (code === "P2002") {
+          console.warn(
+            `[products.sync] Skip product ${p.id} (SKU ${p.sku}): SKU conflict with another store.`,
+          );
+          continue;
+        }
+        throw e;
+      }
 
       if (costPriceUpdate !== undefined) {
         await prisma.transactionItem.updateMany({

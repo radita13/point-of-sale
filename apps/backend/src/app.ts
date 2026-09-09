@@ -11,6 +11,7 @@ import productsRouter from "./routes/products.routes.js";
 import inventoryRouter from "./routes/inventory.routes.js";
 import transactionsRouter from "./routes/transactions.routes.js";
 import storesRouter from "./routes/stores.routes.js";
+import aiRouter from "./routes/ai.routes.js";
 
 const app = express();
 
@@ -51,6 +52,13 @@ const syncLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const aiLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     message: "API Point Of Sale is running.",
@@ -67,6 +75,7 @@ app.use("/api/v1/products", apiLimiter, productsRouter);
 app.use("/api/v1/inventory", apiLimiter, inventoryRouter);
 app.use("/api/v1/transactions", apiLimiter, transactionsRouter);
 app.use("/api/v1/stores", apiLimiter, storesRouter);
+app.use("/api/v1/ai", aiLimiter, aiRouter);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ status: "error", message: "Route not found." });

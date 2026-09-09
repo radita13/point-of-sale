@@ -140,3 +140,36 @@ export interface ReceiptData {
   change: number;
   paymentMethod: string;
 }
+
+export interface AiChatMessageDto {
+  id: string;
+  role: "user" | "model" | "system";
+  content: string;
+  createdAt: string;
+}
+
+export interface AiConversationDto {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: AiChatMessageDto[];
+}
+
+export interface AiChatRequest {
+  message: string;
+  conversationId?: string;
+  storeId?: string;
+}
+
+export interface AiChatResponse {
+  text: string;
+  conversationId: string;
+  toolsCalled: string[];
+  tokensUsed?: number;
+}
+
+export interface AiInsightResponse {
+  insight: string;
+}
+

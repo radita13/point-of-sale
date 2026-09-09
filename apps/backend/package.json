@@ -15,6 +15,7 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@google/genai": "^2.21.0",
     "@point-of-sale/shared": "workspace:*",
     "@prisma/client": "^6.16.0",
     "cors": "^2.8.5",

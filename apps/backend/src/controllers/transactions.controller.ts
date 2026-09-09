@@ -51,6 +51,7 @@ export async function syncTransactions(
 
     const foundProducts = await prisma.product.findMany({
       where: {
+        storeId,
         OR: [{ id: { in: feProductIds } }, { serverId: { in: feProductIds } }],
       },
     });

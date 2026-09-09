@@ -67,8 +67,8 @@ export async function adjustInventory(
             where: { id: a.id },
           });
           if (existing) continue;
-          const product = await tx.product.findUnique({
-            where: { serverId: a.productId },
+          const product = await tx.product.findFirst({
+            where: { serverId: a.productId, storeId },
           });
           if (!product) continue;
           await tx.product.update({

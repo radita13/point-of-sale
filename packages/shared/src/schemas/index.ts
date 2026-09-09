@@ -83,7 +83,7 @@ export const transactionSchema = z
     finalAmount: z.number().nonnegative(),
     paymentMethod: paymentMethodSchema,
     payAmount: z.number().nonnegative(),
-    changeAmount: z.number(),
+    changeAmount: z.number().nonnegative(),
     isSynced: z.boolean(),
   })
   .refine(
@@ -102,7 +102,11 @@ export const transactionSchema = z
       message: "changeAmount must equal payAmount - finalAmount",
       path: ["changeAmount"],
     },
-  );
+  )
+  .refine((tx) => tx.payAmount >= tx.finalAmount, {
+    message: "payAmount must cover finalAmount",
+    path: ["payAmount"],
+  });
 
 export const syncPayloadSchema = z.object({
   storeId: storeIdSchema.optional(),
@@ -158,3 +162,10 @@ export const inventoryAdjustmentsPayloadSchema = z.object({
 export const updateStoreSchema = z.object({
   name: z.string().min(1, "Store name is required").max(100, "Store name too long"),
 });
+
+export const aiChatPayloadSchema = z.object({
+  message: z.string().min(1, "Pesan tidak boleh kosong").max(1000, "Pesan maksimal 1000 karakter"),
+  conversationId: z.string().uuid("conversationId harus valid UUID").optional(),
+  storeId: storeIdSchema.optional(),
+});
+

@@ -6,6 +6,8 @@ import type {
   SyncPayload,
   SyncStatusResult,
   Transaction,
+  AiChatResponse,
+  AiInsightResponse,
 } from '@point-of-sale/shared';
 import { currentAccessToken } from './supabase';
 
@@ -152,6 +154,30 @@ export const api = {
     return request<{ success: boolean; store: { id: string; name: string } }>('/stores/me', {
       method: 'PATCH',
       body: JSON.stringify({ name }),
+    });
+  },
+
+  getAiInsight(): Promise<AiInsightResponse> {
+    const sid = getStoreId();
+    const url = sid ? `/ai/insight?storeId=${sid}` : '/ai/insight';
+    return request<AiInsightResponse>(url);
+  },
+
+  chatAi(message: string, conversationId?: string): Promise<AiChatResponse> {
+    const sid = getStoreId();
+    return request<AiChatResponse>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationId, storeId: sid }),
+    });
+  },
+
+  getAiConversations(): Promise<{ conversations: any[] }> {
+    return request<{ conversations: any[] }>('/ai/conversations');
+  },
+
+  deleteAiConversation(id: string): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/ai/conversations/${id}`, {
+      method: 'DELETE',
     });
   },
 };

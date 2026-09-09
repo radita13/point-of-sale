@@ -4,6 +4,7 @@ import type { Request, Response as ExpressResponse, NextFunction } from "express
 export interface SupabaseAuthResult {
   sub: string;
   email?: string | null;
+  name?: string | null;
 }
 
 export async function authGuard(
@@ -28,9 +29,12 @@ export async function authGuard(
         algorithms: ["HS256"],
       }) as JwtPayload;
       if (decoded.sub) {
+        const meta = (decoded.user_metadata ?? {}) as Record<string, unknown>;
+        const rawName = meta.full_name || meta.name || decoded.name;
         req.auth = {
           sub: decoded.sub,
           email: typeof decoded.email === "string" ? decoded.email : null,
+          name: typeof rawName === "string" ? rawName : null,
         };
         return next();
       }
@@ -72,11 +76,14 @@ export async function authGuard(
         const userData = (await response.json()) as {
           id: string;
           email?: string;
+          user_metadata?: { full_name?: string; name?: string };
         };
         if (userData?.id) {
+          const rawName = userData.user_metadata?.full_name || userData.user_metadata?.name;
           req.auth = {
             sub: userData.id,
             email: userData.email ?? null,
+            name: typeof rawName === "string" ? rawName : null,
           };
           return next();
         }
