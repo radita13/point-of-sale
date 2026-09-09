@@ -10,6 +10,7 @@ allowBuilds:
   "@prisma/client": true
   sharp: true
   workbox-build: true
-  '@prisma/engines': true
-  '@scarf/scarf': false
-  '@google/genai': true
+  "@prisma/engines": true
+  "@scarf/scarf": false
+  "@google/genai": true
+  protobufjs: true
